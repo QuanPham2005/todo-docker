@@ -19,9 +19,7 @@ import { UsersModule } from './users/users.module';
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
-        ssl: process.env.NODE_ENV === 'production'
-          ? { rejectUnauthorized: false }  // ← chấp nhận Aiven self-signed cert
-          : false,   
+        ssl: { rejectUnauthorized: false },   
         entities: [User, Todo, Tag],
         synchronize: false,
         logging: config.get('NODE_ENV') === 'development',
