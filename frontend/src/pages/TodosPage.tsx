@@ -12,20 +12,10 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import InputAdornment from '@mui/material/InputAdornment';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import IconButton from '@mui/material/IconButton';
 import Chip from '@mui/material/Chip';
 import Pagination from '@mui/material/Pagination';
 import Alert from '@mui/material/Alert';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
+import CardActions from '@mui/material/CardActions';
 import CircularProgress from '@mui/material/CircularProgress';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -79,7 +69,6 @@ export default function TodosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<TodoForm>(initialForm);
-  const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
 
   const loadTodos = () => {
@@ -117,7 +106,6 @@ export default function TodosPage() {
   const resetForm = () => {
     setForm(initialForm);
     setEditingTodo(null);
-    setIsEditOpen(false);
   };
 
   const parseTags = (raw: string) =>
@@ -171,7 +159,6 @@ export default function TodosPage() {
       tags: todo.tags.map((tag) => tag.name).join(', '),
       dueDate: todo.dueDate ? dayjs(todo.dueDate) : dayjs(),
     });
-    setIsEditOpen(true);
   };
 
   const handleToggle = async (todo: TodoItem) => {
@@ -210,298 +197,124 @@ export default function TodosPage() {
     <Box sx={{ display: 'grid', gap: 3 }}>
       <Typography variant="h4">Danh sách Todo</Typography>
       {error ? <Alert severity="error">{error}</Alert> : null}
-      <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', md: '3fr 2fr' } }}>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Thêm / Chỉnh sửa Todo
+        </Typography>
+        <Stack spacing={2}>
+          <TextField
+            label="Tiêu đề"
+            value={form.title}
+            onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+            fullWidth
+          />
+          <TextField
+            label="Mô tả"
+            value={form.description}
+            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+            fullWidth
+            multiline
+            minRows={3}
+          />
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              label="Ngày đến hạn"
+              value={form.dueDate}
+              onChange={(newValue) => setForm((prev) => ({ ...prev, dueDate: newValue }))}
+              minDate={dayjs()}
+              slotProps={{ textField: { fullWidth: true } }}
+            />
+          </LocalizationProvider>
+          <FormControl fullWidth>
+            <InputLabel id="priority-label">Độ ưu tiên</InputLabel>
+            <Select
+              labelId="priority-label"
+              label="Độ ưu tiên"
+              value={form.priority}
+              onChange={(event: SelectChangeEvent<string>) =>
+                setForm((prev) => ({ ...prev, priority: event.target.value }))
+              }
+            >
+              {priorities.map((priorityOption) => (
+                <MenuItem key={priorityOption} value={priorityOption}>
+                  {priorityOption}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            label="Thẻ (phân tách bằng dấu phẩy)"
+            value={form.tags}
+            onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
+            fullWidth
+          />
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            {editingTodo ? <Button onClick={resetForm}>Hủy</Button> : null}
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              disabled={submitting}
+              startIcon={submitting ? <CircularProgress size={18} /> : undefined}
+            >
+              {editingTodo ? 'Cập nhật' : 'Tạo mới'}
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
+
+      <Box sx={{ display: 'grid', gap: 3 }}>
         <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Thêm / Chỉnh sửa Todo
-            </Typography>
-            <Stack spacing={2}>
-              <TextField
-                label="Tiêu đề"
-                value={form.title}
-                onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-                fullWidth
-              />
-              <TextField
-                label="Mô tả"
-                value={form.description}
-                onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                fullWidth
-                multiline
-                minRows={3}
-              />
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  label="Ngày đến hạn"
-                  value={form.dueDate}
-                  onChange={(newValue) => setForm((prev) => ({ ...prev, dueDate: newValue }))}
-                  minDate={dayjs()}
-                  slotProps={{ textField: { fullWidth: true } }}
-                />
-              </LocalizationProvider>
-              <FormControl fullWidth>
-                <InputLabel id="priority-label">Độ ưu tiên</InputLabel>
-                <Select
-                  labelId="priority-label"
-                  label="Độ ưu tiên"
-                  value={form.priority}
-                  onChange={(event: SelectChangeEvent<string>) =>
-                    setForm((prev) => ({ ...prev, priority: event.target.value }))
-                  }
-                >
-                  {priorities.map((priorityOption) => (
-                    <MenuItem key={priorityOption} value={priorityOption}>
-                      {priorityOption}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField
-                label="Thẻ (phân tách bằng dấu phẩy)"
-                value={form.tags}
-                onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
-                fullWidth
-              />
-              <Stack direction="row" spacing={1} justifyContent="flex-end">
-                {editingTodo ? (
-                  <Button onClick={resetForm}>Hủy</Button>
-                ) : null}
-                <Button
-                  variant="contained"
-                  onClick={handleSave}
-                  disabled={submitting}
-                  startIcon={submitting ? <CircularProgress size={18} /> : undefined}
-                >
-                  {editingTodo ? 'Cập nhật' : 'Tạo mới'}
-                </Button>
-              </Stack>
-            </Stack>
-          </Paper>
-
-        <Box>
-          <Paper sx={{ p: 3, mb: 2 }}>
-            <Stack direction="row" spacing={2} flexWrap="wrap" alignItems="center">
-              <Box sx={{ minWidth: 220, flex: '1 1 220px' }}>
-                <TextField
-                  fullWidth
-                  label="Tìm kiếm"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon sx={{ color: 'text.disabled' }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Box>
-              <Box sx={{ minWidth: 180, flex: '1 1 180px' }}>
-                <FormControl fullWidth>
-                  <InputLabel id="status-filter-label">Trạng thái</InputLabel>
-                  <Select
-                    labelId="status-filter-label"
-                    label="Trạng thái"
-                    value={status}
-                    onChange={(event: SelectChangeEvent<string>) => {
-                      setStatus(event.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <MenuItem value="all">Tất cả</MenuItem>
-                    <MenuItem value="pending">Chưa hoàn thành</MenuItem>
-                    <MenuItem value="completed">Hoàn thành</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box sx={{ minWidth: 180, flex: '1 1 180px' }}>
-                <FormControl fullWidth>
-                  <InputLabel id="priority-filter-label">Ưu tiên</InputLabel>
-                  <Select
-                    labelId="priority-filter-label"
-                    label="Ưu tiên"
-                    value={priority}
-                    onChange={(event: SelectChangeEvent<string>) => {
-                      setPriority(event.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <MenuItem value="all">Tất cả</MenuItem>
-                    {priorities.map((priorityOption) => (
-                      <MenuItem key={priorityOption} value={priorityOption}>
-                        {priorityOption}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box sx={{ minWidth: 180, flex: '1 1 180px' }}>
-                <FormControl fullWidth>
-                  <InputLabel id="sort-label">Sắp xếp</InputLabel>
-                  <Select
-                    labelId="sort-label"
-                    label="Sắp xếp"
-                    value={sortBy}
-                    onChange={(event: SelectChangeEvent<string>) => setSortBy(event.target.value)}
-                  >
-                    <MenuItem value="due_date">Ngày đến hạn</MenuItem>
-                    <MenuItem value="priority">Ưu tiên</MenuItem>
-                    <MenuItem value="created_at">Mới nhất</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box sx={{ minWidth: 180, flex: '1 1 180px' }}>
-                <FormControl fullWidth>
-                  <InputLabel id="order-label">Thứ tự</InputLabel>
-                  <Select
-                    labelId="order-label"
-                    label="Thứ tự"
-                    value={order}
-                    onChange={(event: SelectChangeEvent<'asc' | 'desc'>) =>
-                      setOrder(event.target.value as 'asc' | 'desc')
-                    }
-                  >
-                    <MenuItem value="asc">Tăng dần</MenuItem>
-                    <MenuItem value="desc">Giảm dần</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-            </Stack>
-          </Paper>
-
-          <Paper>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Tiêu đề</TableCell>
-                    <TableCell>Ưu tiên</TableCell>
-                    <TableCell>Ngày đến hạn</TableCell>
-                    <TableCell>Trạng thái</TableCell>
-                    <TableCell>Thẻ</TableCell>
-                    <TableCell align="right">Hành động</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center">
-                        <CircularProgress />
-                      </TableCell>
-                    </TableRow>
-                  ) : todos.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center">
-                        Không có todo nào.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    todos.map((todo) => (
-                      <TableRow key={todo.id} hover>
-                        <TableCell>
-                          <Typography fontWeight={600}>{todo.title}</Typography>
-                          {todo.description ? (
-                            <Typography variant="body2" color="text.secondary">
-                              {todo.description}
-                            </Typography>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>{todo.priority}</TableCell>
-                        <TableCell>
-                          {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt'}
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={todo.completed ? 'Hoàn thành' : 'Chưa hoàn thành'}
-                            color={todo.completed ? 'success' : 'warning'}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Stack direction="row" spacing={1} flexWrap="wrap">
-                            {todo.tags.map((tag) => (
-                              <Chip key={tag.name} label={tag.name} size="small" />
-                            ))}
-                          </Stack>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <IconButton size="small" onClick={() => handleToggle(todo)}>
-                              {todo.completed ? <UndoIcon /> : <DoneIcon />}
-                            </IconButton>
-                            <IconButton size="small" onClick={() => handleEdit(todo)}>
-                              <EditIcon />
-                            </IconButton>
-                            <IconButton size="small" onClick={() => handleDelete(todo.id)}>
-                              <DeleteIcon />
-                            </IconButton>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-            <Typography variant="body2">Tổng: {total} todo</Typography>
-            <Pagination
-              count={Math.ceil(total / limit)}
-              page={page}
-              onChange={(_, value) => setPage(value)}
-              color="primary"
-              shape="rounded"
-            />
-          </Box>
-
-          <Paper sx={{ p: 2, mt: 2 }}>
-            <Typography variant="subtitle1">Tóm tắt</Typography>
-            <Typography variant="body2">Todo chưa hoàn thành: {stats.pendingCount}</Typography>
-            <Typography variant="body2">Todo hoàn thành: {stats.completedCount}</Typography>
-            <Typography variant="body2">Todo quá hạn: {stats.overdueCount}</Typography>
-          </Paper>
-        </Box>
-      </Box>
-
-      <Dialog open={isEditOpen} onClose={resetForm} fullWidth maxWidth="sm">
-        <DialogTitle>{editingTodo ? 'Chỉnh sửa Todo' : 'Tạo Todo mới'}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          <Typography variant="h6" gutterBottom>
+            Bộ lọc Todo
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+            }}
+          >
             <TextField
-              label="Tiêu đề"
-              value={form.title}
-              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
               fullWidth
+              label="Tìm kiếm"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              }}
             />
-            <TextField
-              label="Mô tả"
-              value={form.description}
-              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-              fullWidth
-              multiline
-              minRows={3}
-            />
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker
-                label="Ngày đến hạn"
-                value={form.dueDate}
-                onChange={(newValue) => setForm((prev) => ({ ...prev, dueDate: newValue }))}
-                minDate={dayjs()}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
-            </LocalizationProvider>
             <FormControl fullWidth>
-              <InputLabel id="dialog-priority-label">Độ ưu tiên</InputLabel>
+              <InputLabel id="status-filter-label">Trạng thái</InputLabel>
               <Select
-                labelId="dialog-priority-label"
-                label="Độ ưu tiên"
-                value={form.priority}
-                onChange={(event: SelectChangeEvent<string>) =>
-                  setForm((prev) => ({ ...prev, priority: event.target.value }))
-                }
+                labelId="status-filter-label"
+                label="Trạng thái"
+                value={status}
+                onChange={(event: SelectChangeEvent<string>) => {
+                  setStatus(event.target.value);
+                  setPage(1);
+                }}
               >
+                <MenuItem value="all">Tất cả</MenuItem>
+                <MenuItem value="pending">Chưa hoàn thành</MenuItem>
+                <MenuItem value="completed">Hoàn thành</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel id="priority-filter-label">Ưu tiên</InputLabel>
+              <Select
+                labelId="priority-filter-label"
+                label="Ưu tiên"
+                value={priority}
+                onChange={(event: SelectChangeEvent<string>) => {
+                  setPriority(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <MenuItem value="all">Tất cả</MenuItem>
                 {priorities.map((priorityOption) => (
                   <MenuItem key={priorityOption} value={priorityOption}>
                     {priorityOption}
@@ -509,21 +322,125 @@ export default function TodosPage() {
                 ))}
               </Select>
             </FormControl>
-            <TextField
-              label="Thẻ (phân tách bằng dấu phẩy)"
-              value={form.tags}
-              onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={resetForm}>Đóng</Button>
-          <Button onClick={handleSave} variant="contained" disabled={submitting}>
-            {submitting ? <CircularProgress size={18} /> : editingTodo ? 'Cập nhật' : 'Tạo'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            <FormControl fullWidth>
+              <InputLabel id="sort-label">Sắp xếp</InputLabel>
+              <Select
+                labelId="sort-label"
+                label="Sắp xếp"
+                value={sortBy}
+                onChange={(event: SelectChangeEvent<string>) => setSortBy(event.target.value)}
+              >
+                <MenuItem value="due_date">Ngày đến hạn</MenuItem>
+                <MenuItem value="priority">Ưu tiên</MenuItem>
+                <MenuItem value="created_at">Mới nhất</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel id="order-label">Thứ tự</InputLabel>
+              <Select
+                labelId="order-label"
+                label="Thứ tự"
+                value={order}
+                onChange={(event: SelectChangeEvent<'asc' | 'desc'>) =>
+                  setOrder(event.target.value as 'asc' | 'desc')
+                }
+              >
+                <MenuItem value="asc">Tăng dần</MenuItem>
+                <MenuItem value="desc">Giảm dần</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </Paper>
+
+        <Paper>
+          {loading ? (
+            <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress />
+            </Box>
+          ) : todos.length === 0 ? (
+            <Box sx={{ py: 8, textAlign: 'center' }}>
+              <Typography variant="h6" gutterBottom>
+                Không có todo nào.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Bắt đầu tạo todo mới để quản lý công việc của bạn.
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+              {todos.map((todo) => (
+                <Paper key={todo.id} sx={{ p: 2, borderRadius: 2, boxShadow: 1 }}>
+                  <Stack spacing={1}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                      <Stack>
+                        <Typography variant="h6" fontWeight={700}>
+                          {todo.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {todo.priority} • {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt ngày'}
+                        </Typography>
+                      </Stack>
+                      <Chip
+                        label={todo.completed ? 'Hoàn thành' : 'Chưa hoàn thành'}
+                        color={todo.completed ? 'success' : 'warning'}
+                        size="small"
+                      />
+                    </Stack>
+
+                    {todo.description ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {todo.description}
+                      </Typography>
+                    ) : null}
+
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {todo.tags.map((tag) => (
+                        <Chip key={tag.name} label={tag.name} size="small" />
+                      ))}
+                    </Stack>
+
+                    <CardActions sx={{ justifyContent: 'flex-end', px: 0, py: 1 }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => handleToggle(todo)}
+                        startIcon={todo.completed ? <UndoIcon /> : <DoneIcon />}
+                      >
+                        {todo.completed ? 'Khôi phục' : 'Hoàn thành'}
+                      </Button>
+                      <Button size="small" onClick={() => handleEdit(todo)} startIcon={<EditIcon />}>
+                        Sửa
+                      </Button>
+                      <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
+                        Xóa
+                      </Button>
+                    </CardActions>
+                  </Stack>
+                </Paper>
+              ))}
+            </Box>
+          )}
+        </Paper>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+          <Typography variant="body2">Tổng: {total} todo</Typography>
+          <Pagination
+            count={Math.ceil(total / limit)}
+            page={page}
+            onChange={(_, value) => setPage(value)}
+            color="primary"
+            shape="rounded"
+          />
+        </Box>
+
+        <Paper sx={{ p: 2, mt: 2 }}>
+          <Typography variant="subtitle1">Tóm tắt</Typography>
+          <Typography variant="body2">Todo chưa hoàn thành: {stats.pendingCount}</Typography>
+          <Typography variant="body2">Todo hoàn thành: {stats.completedCount}</Typography>
+          <Typography variant="body2">Todo quá hạn: {stats.overdueCount}</Typography>
+        </Paper>
+      </Box>
+
     </Box>
   );
 }
