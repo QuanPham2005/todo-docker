@@ -38,6 +38,9 @@ export class Todo {
   @Column({ default: false })
   completed!: boolean;
 
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
+  status!: 'pending' | 'completed' | 'overdue';
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

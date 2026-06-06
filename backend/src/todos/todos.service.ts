@@ -11,6 +11,8 @@ import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { QueryTodoDto } from './dto/query-todo.dto';
 
+type TodoStatus = 'pending' | 'completed' | 'overdue';
+
 @Injectable()
 export class TodosService {
   constructor(
@@ -20,14 +22,37 @@ export class TodosService {
     private readonly tagRepository: Repository<Tag>,
   ) {}
 
+  private normalizeDate(value: Date): Date {
+    const date = new Date(value);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  private resolveStatus(completed: boolean, dueDate: Date | null): TodoStatus {
+    if (completed) {
+      return 'completed';
+    }
+
+    const today = this.normalizeDate(new Date());
+    const due = dueDate ? this.normalizeDate(dueDate) : null;
+    if (due && due < today) {
+      return 'overdue';
+    }
+
+    return 'pending';
+  }
+
   async create(user: User, dto: CreateTodoDto) {
+    const dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
+    const completed = false;
     const todo = this.todosRepository.create({
       userId: user.id,
       title: dto.title,
       description: dto.description ?? null,
-      dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      dueDate,
       priority: dto.priority ?? 'Low',
-      completed: false,
+      completed,
+      status: this.resolveStatus(completed, dueDate),
     });
 
     const saved = await this.todosRepository.save(todo);
@@ -55,11 +80,25 @@ export class TodosService {
       .leftJoinAndSelect('todo.tags', 'tag')
       .where('todo.user_id = :userId', { userId: user.id });
 
+    const today = this.normalizeDate(new Date());
+
     if (query.status && query.status !== 'all') {
-      qb.andWhere(
-        'todo.completed = :completed',
-        { completed: query.status === 'completed' },
-      );
+      if (query.status === 'completed') {
+        qb.andWhere(
+          '(todo.status = :status OR todo.completed = true)',
+          { status: 'completed' },
+        );
+      } else if (query.status === 'pending') {
+        qb.andWhere(
+          '((todo.status = :status AND (todo.due_date IS NULL OR todo.due_date::date >= CURRENT_DATE)) OR (todo.status IS NULL AND todo.completed = false AND (todo.due_date IS NULL OR todo.due_date::date >= CURRENT_DATE)))',
+          { status: 'pending' },
+        );
+      } else if (query.status === 'overdue') {
+        qb.andWhere(
+          '((todo.status = :status) OR ((todo.status = :pending OR todo.status IS NULL) AND todo.completed = false AND todo.due_date::date < CURRENT_DATE))',
+          { status: 'overdue', pending: 'pending' },
+        );
+      }
     }
 
     if (query.priority) {
@@ -73,9 +112,9 @@ export class TodosService {
     }
 
     const sortColumn =
-      query.sortBy === 'created_at' ? 'todo.createdAt'
+      query.sortBy === 'created_at' ? 'todo.created_at'
       : query.sortBy === 'priority' ? 'todo.priority'
-      : 'todo.dueDate';
+      : 'todo.due_date';
 
     qb.orderBy(sortColumn, query.order ?? 'ASC');
 
@@ -132,6 +171,8 @@ export class TodosService {
       todo.completed = dto.completed;
     }
 
+    todo.status = this.resolveStatus(todo.completed, todo.dueDate);
+
     if (dto.tags !== undefined) {
       await this.tagRepository.delete({ todoId: todo.id });
       todo.tags = [];
@@ -165,6 +206,7 @@ export class TodosService {
   async toggleCompleted(id: number, user: User) {
     const todo = await this.findOneForUser(id, user);
     todo.completed = !todo.completed;
+    todo.status = this.resolveStatus(todo.completed, todo.dueDate);
     await this.todosRepository.save(todo);
     return todo;
   }

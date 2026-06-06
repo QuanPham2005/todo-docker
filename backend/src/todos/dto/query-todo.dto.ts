@@ -15,8 +15,8 @@ export class QueryTodoDto {
   limit?: number = 10;
 
   @IsOptional()
-  @IsIn(['all', 'completed', 'pending'])
-  status?: 'all' | 'completed' | 'pending' = 'all';
+  @IsIn(['all', 'completed', 'pending', 'overdue'])
+  status?: 'all' | 'completed' | 'pending' | 'overdue' = 'all';
 
   @IsOptional()
   @IsIn(['Low', 'Medium', 'High'])

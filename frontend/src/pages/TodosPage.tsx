@@ -36,6 +36,7 @@ type TodoItem = {
   dueDate: string | null;
   priority: string;
   completed: boolean;
+  status: 'pending' | 'completed' | 'overdue';
   tags: Array<{ name: string }>;
 };
 
@@ -58,7 +59,7 @@ const initialForm: TodoForm = {
 export default function TodosPage() {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState<'all' | 'completed' | 'pending' | 'overdue'>('all');
   const [priority, setPriority] = useState('all');
   const [sortBy, setSortBy] = useState('due_date');
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
@@ -182,14 +183,25 @@ export default function TodosPage() {
     }
   };
 
+  const normalizeDate = (date: Date | null) => {
+    if (!date) return null;
+    const result = new Date(date);
+    result.setHours(0, 0, 0, 0);
+    return result;
+  };
+
   const stats = useMemo(() => {
-    const today = new Date();
+    const today = normalizeDate(new Date());
     const overdueCount = todos.filter((todo) => {
-      const dueDate = todo.dueDate ? new Date(todo.dueDate) : null;
-      return !todo.completed && dueDate !== null && dueDate < today;
+      const dueDate = normalizeDate(todo.dueDate ? new Date(todo.dueDate) : null);
+      return !todo.completed && dueDate !== null && dueDate < today!;
     }).length;
     const completedCount = todos.filter((todo) => todo.completed).length;
-    const pendingCount = todos.length - completedCount;
+    const pendingCount = todos.filter((todo) => {
+      const dueDate = normalizeDate(todo.dueDate ? new Date(todo.dueDate) : null);
+      const isOverdue = dueDate !== null && dueDate < today!;
+      return !todo.completed && !isOverdue;
+    }).length;
     return { overdueCount, completedCount, pendingCount };
   }, [todos]);
 
@@ -294,13 +306,14 @@ export default function TodosPage() {
                 label="Trạng thái"
                 value={status}
                 onChange={(event: SelectChangeEvent<string>) => {
-                  setStatus(event.target.value);
+                  setStatus(event.target.value as 'all' | 'completed' | 'pending' | 'overdue');
                   setPage(1);
                 }}
               >
                 <MenuItem value="all">Tất cả</MenuItem>
                 <MenuItem value="pending">Chưa hoàn thành</MenuItem>
                 <MenuItem value="completed">Hoàn thành</MenuItem>
+                <MenuItem value="overdue">Quá hạn</MenuItem>
               </Select>
             </FormControl>
             <FormControl fullWidth>
@@ -368,56 +381,65 @@ export default function TodosPage() {
             </Box>
           ) : (
             <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-              {todos.map((todo) => (
-                <Paper key={todo.id} sx={{ p: 2, borderRadius: 2, boxShadow: 1 }}>
-                  <Stack spacing={1}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                      <Stack>
-                        <Typography variant="h6" fontWeight={700}>
-                          {todo.title}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {todo.priority} • {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt ngày'}
-                        </Typography>
+              {todos.map((todo) => {
+                const dueDate = todo.dueDate ? normalizeDate(new Date(todo.dueDate)) : null;
+                const today = normalizeDate(new Date());
+                const isOverdue = !todo.completed && dueDate !== null && dueDate < today!;
+                return (
+                  <Paper key={todo.id} sx={{ p: 2, borderRadius: 2, boxShadow: 1 }}>
+                    <Stack spacing={1}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                        <Stack>
+                          <Typography variant="h6" fontWeight={700}>
+                            {todo.title}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {todo.priority} • {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt ngày'}
+                          </Typography>
+                        </Stack>
+                        <Chip
+                          label={todo.completed ? 'Hoàn thành' : isOverdue ? 'Quá hạn' : 'Chưa hoàn thành'}
+                          color={todo.completed ? 'success' : isOverdue ? 'error' : 'warning'}
+                          size="small"
+                        />
                       </Stack>
-                      <Chip
-                        label={todo.completed ? 'Hoàn thành' : 'Chưa hoàn thành'}
-                        color={todo.completed ? 'success' : 'warning'}
-                        size="small"
-                      />
+
+                      {todo.description ? (
+                        <Typography variant="body2" color="text.secondary">
+                          {todo.description}
+                        </Typography>
+                      ) : null}
+
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        {todo.tags.map((tag) => (
+                          <Chip key={tag.name} label={tag.name} size="small" />
+                        ))}
+                      </Stack>
+
+                      <CardActions sx={{ justifyContent: 'flex-end', px: 0, py: 1 }}>
+                        {!isOverdue && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleToggle(todo)}
+                            startIcon={todo.completed ? <UndoIcon /> : <DoneIcon />}
+                          >
+                            {todo.completed ? 'Khôi phục' : 'Hoàn thành'}
+                          </Button>
+                        )}
+                        {!isOverdue && (
+                          <Button size="small" onClick={() => handleEdit(todo)} startIcon={<EditIcon />}>
+                            Sửa
+                          </Button>
+                        )}
+                        <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
+                          Xóa
+                        </Button>
+                      </CardActions>
                     </Stack>
-
-                    {todo.description ? (
-                      <Typography variant="body2" color="text.secondary">
-                        {todo.description}
-                      </Typography>
-                    ) : null}
-
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                      {todo.tags.map((tag) => (
-                        <Chip key={tag.name} label={tag.name} size="small" />
-                      ))}
-                    </Stack>
-
-                    <CardActions sx={{ justifyContent: 'flex-end', px: 0, py: 1 }}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => handleToggle(todo)}
-                        startIcon={todo.completed ? <UndoIcon /> : <DoneIcon />}
-                      >
-                        {todo.completed ? 'Khôi phục' : 'Hoàn thành'}
-                      </Button>
-                      <Button size="small" onClick={() => handleEdit(todo)} startIcon={<EditIcon />}>
-                        Sửa
-                      </Button>
-                      <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
-                        Xóa
-                      </Button>
-                    </CardActions>
-                  </Stack>
-                </Paper>
-              ))}
+                  </Paper>
+                );
+              })}
             </Box>
           )}
         </Paper>

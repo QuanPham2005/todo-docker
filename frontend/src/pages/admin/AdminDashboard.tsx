@@ -29,6 +29,7 @@ const todoStatusOptions = [
   { value: 'all', label: 'Tất cả' },
   { value: 'pending', label: 'Chưa hoàn thành' },
   { value: 'completed', label: 'Hoàn thành' },
+  { value: 'overdue', label: 'Quá hạn' },
 ];
 
 const todoSortOptions = [
@@ -54,6 +55,7 @@ type AdminTodo = {
   title: string;
   priority: string;
   completed: boolean;
+  status: 'pending' | 'completed' | 'overdue';
   dueDate: string | null;
   user: { email: string };
   tags: Array<{ name: string }>;
@@ -464,8 +466,26 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={todo.completed ? 'Hoàn thành' : 'Chưa hoàn thành'}
-                          color={todo.completed ? 'success' : 'warning'}
+                          label={
+                            todo.completed
+                              ? 'Hoàn thành'
+                              : todo.status === 'overdue' ||
+                                ((todo.status === 'pending' || !todo.status) &&
+                                  todo.dueDate &&
+                                  new Date(todo.dueDate) < new Date(new Date().toDateString()))
+                              ? 'Quá hạn'
+                              : 'Chưa hoàn thành'
+                          }
+                          color={
+                            todo.completed
+                              ? 'success'
+                              : todo.status === 'overdue' ||
+                                ((todo.status === 'pending' || !todo.status) &&
+                                  todo.dueDate &&
+                                  new Date(todo.dueDate) < new Date(new Date().toDateString()))
+                              ? 'error'
+                              : 'warning'
+                          }
                           size="small"
                         />
                       </TableCell>

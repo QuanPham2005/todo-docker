@@ -49,18 +49,29 @@ export default function DashboardPage() {
     let overdue = 0;
     let dueSoon = 0;
 
+    const normalizeDate = (date: Date | null) => {
+      if (!date) return null;
+      const result = new Date(date);
+      result.setHours(0, 0, 0, 0);
+      return result;
+    };
+
     todos.forEach((todo) => {
-      const dueDate = todo.dueDate ? new Date(todo.dueDate) : null;
+      const dueDate = normalizeDate(todo.dueDate ? new Date(todo.dueDate) : null);
+      const todayDate = normalizeDate(today);
+      const nextWeekDate = normalizeDate(nextWeek);
+      const isOverdue = todo.completed === false && dueDate !== null && dueDate < todayDate!;
       if (todo.completed) {
         completed += 1;
+      } else if (isOverdue) {
+        overdue += 1;
       } else {
         pending += 1;
-        if (dueDate) {
-          if (dueDate < today) {
-            overdue += 1;
-          } else if (dueDate <= nextWeek) {
-            dueSoon += 1;
-          }
+      }
+
+      if (!todo.completed && dueDate) {
+        if (!isOverdue && dueDate <= nextWeekDate!) {
+          dueSoon += 1;
         }
       }
     });

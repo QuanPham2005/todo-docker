@@ -77,9 +77,22 @@ export class AdminService {
       .leftJoinAndSelect('todo.user', 'user');
 
     if (query.status && query.status !== 'all') {
-      qb.andWhere('todo.completed = :completed', {
-        completed: query.status === 'completed',
-      });
+      if (query.status === 'completed') {
+        qb.andWhere(
+          '(todo.status = :status OR todo.completed = true)',
+          { status: query.status },
+        );
+      } else if (query.status === 'pending') {
+        qb.andWhere(
+          '((todo.status = :status AND (todo.due_date IS NULL OR todo.due_date::date >= CURRENT_DATE)) OR (todo.status IS NULL AND todo.completed = false AND (todo.due_date IS NULL OR todo.due_date::date >= CURRENT_DATE)))',
+          { status: query.status },
+        );
+      } else if (query.status === 'overdue') {
+        qb.andWhere(
+          '((todo.status = :status) OR ((todo.status = :pending OR todo.status IS NULL) AND todo.completed = false AND todo.due_date::date < CURRENT_DATE))',
+          { status: query.status, pending: 'pending' },
+        );
+      }
     }
 
     if (query.priority) {
@@ -124,15 +137,24 @@ export class AdminService {
     });
     const totalTodos = await this.todosRepository.count();
     const completedTodos = await this.todosRepository.count({
-      where: { completed: true },
+      where: [
+        { status: 'completed' },
+        { completed: true },
+      ],
     });
-    const pendingTodos = await this.todosRepository.count({
-      where: { completed: false },
-    });
+    const pendingTodos = await this.todosRepository
+      .createQueryBuilder('todo')
+      .where(
+        '((todo.status = :status AND (todo.due_date IS NULL OR todo.due_date::date >= CURRENT_DATE)) OR (todo.status IS NULL AND todo.completed = false AND (todo.due_date IS NULL OR todo.due_date::date >= CURRENT_DATE)))',
+        { status: 'pending' },
+      )
+      .getCount();
     const overdueTodos = await this.todosRepository
       .createQueryBuilder('todo')
-      .where('todo.completed = false')
-      .andWhere('todo.due_date < NOW()')
+      .where(
+        '((todo.status = :status) OR ((todo.status = :pending OR todo.status IS NULL) AND todo.completed = false AND todo.due_date::date < CURRENT_DATE))',
+        { status: 'overdue', pending: 'pending' },
+      )
       .getCount();
 
     return {
@@ -154,10 +176,21 @@ export class AdminService {
         const total = await this.todosRepository.count({
           where: { userId: user.id },
         });
-        const completed = await this.todosRepository.count({
-          where: { userId: user.id, completed: true },
-        });
-        const pending = total - completed;
+        const completed = await this.todosRepository
+          .createQueryBuilder('todo')
+          .where('todo.user_id = :userId', { userId: user.id })
+          .andWhere('(todo.status = :status OR todo.completed = true)', {
+            status: 'completed',
+          })
+          .getCount();
+        const pending = await this.todosRepository
+          .createQueryBuilder('todo')
+          .where('todo.user_id = :userId', { userId: user.id })
+          .andWhere(
+            '((todo.status = :status AND (todo.due_date IS NULL OR todo.due_date::date >= CURRENT_DATE)) OR (todo.status IS NULL AND todo.completed = false AND (todo.due_date IS NULL OR todo.due_date::date >= CURRENT_DATE)))',
+            { status: 'pending' },
+          )
+          .getCount();
         const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
         return {
