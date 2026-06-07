@@ -29,6 +29,13 @@ import { fetchTodos, createTodo, updateTodo, toggleTodo, deleteTodo } from '../a
 
 const priorities = ['Low', 'Medium', 'High'] as const;
 
+// Priority colors for visual distinction
+const priorityColors = {
+  Low: '#4caf50',    // Green
+  Medium: '#ff9800', // Orange
+  High: '#f44336',   // Red
+} as const;
+
 type TodoItem = {
   id: number;
   title: string;
@@ -312,6 +319,8 @@ export default function TodosPage() {
               >
                 <MenuItem value="all">Tất cả</MenuItem>
                 <MenuItem value="pending">Chưa hoàn thành</MenuItem>
+  <Typography variant="body2" color="text.secondary" sx={{ pl: 2, py: 1 }}>Hoàn thành: {stats.completedCount}</Typography>
+  <Typography variant="body2" color="text.secondary" sx={{ pl: 2, py: 1 }}>Quá hạn: {stats.overdueCount}</Typography>
                 <MenuItem value="completed">Hoàn thành</MenuItem>
                 <MenuItem value="overdue">Quá hạn</MenuItem>
               </Select>
@@ -393,9 +402,20 @@ export default function TodosPage() {
                           <Typography variant="h6" fontWeight={700}>
                             {todo.title}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {todo.priority} • {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt ngày'}
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box
+                              sx={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: '50%',
+                                backgroundColor: priorityColors[todo.priority as keyof typeof priorityColors],
+                                opacity: 0.8
+                              }}
+                            />
+                            <Typography variant="body2" color="text.secondary">
+                              {todo.priority} • {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt ngày'}
+                            </Typography>
+                          </Box>
                         </Stack>
                         <Chip
                           label={todo.completed ? 'Hoàn thành' : isOverdue ? 'Quá hạn' : 'Chưa hoàn thành'}
