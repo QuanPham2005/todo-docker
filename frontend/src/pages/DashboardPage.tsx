@@ -16,7 +16,7 @@ type TodoItem = {
   description: string | null;
   dueDate: string | null;
   priority: string;
-  completed: boolean;
+  status: 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
 };
 
 export default function DashboardPage() {
@@ -40,48 +40,13 @@ export default function DashboardPage() {
   }, []);
 
   const stats = useMemo(() => {
-    const today = new Date();
-    const nextWeek = new Date();
-    nextWeek.setDate(today.getDate() + 7);
-
-    let completed = 0;
-    let pending = 0;
-    let overdue = 0;
-    let dueSoon = 0;
-
-    const normalizeDate = (date: Date | null) => {
-      if (!date) return null;
-      const result = new Date(date);
-      result.setHours(0, 0, 0, 0);
-      return result;
-    };
-
-    todos.forEach((todo) => {
-      const dueDate = normalizeDate(todo.dueDate ? new Date(todo.dueDate) : null);
-      const todayDate = normalizeDate(today);
-      const nextWeekDate = normalizeDate(nextWeek);
-      const isOverdue = todo.completed === false && dueDate !== null && dueDate < todayDate!;
-      if (todo.completed) {
-        completed += 1;
-      } else if (isOverdue) {
-        overdue += 1;
-      } else {
-        pending += 1;
-      }
-
-      if (!todo.completed && dueDate) {
-        if (!isOverdue && dueDate <= nextWeekDate!) {
-          dueSoon += 1;
-        }
-      }
-    });
-
     return {
       total: todos.length,
-      completed,
-      pending,
-      overdue,
-      dueSoon,
+      todo: todos.filter((t) => t.status === 'todo').length,
+      inProgress: todos.filter((t) => t.status === 'in_progress').length,
+      done: todos.filter((t) => t.status === 'done').length,
+      overdue: todos.filter((t) => t.status === 'overdue').length,
+      cancelled: todos.filter((t) => t.status === 'cancelled').length,
     };
   }, [todos]);
 
@@ -95,33 +60,28 @@ export default function DashboardPage() {
               Tổng quan todo của bạn
             </Typography>
             <Typography sx={{ mb: 2 }}>
-              Xem nhanh số todo đã hoàn thành, còn lại, quá hạn và sắp đến hạn trong vòng 7 ngày.
+              Xem nhanh số todo theo 5 trạng thái: Todo, Đang làm, Hoàn thành, Quá hạn, Đã hủy.
             </Typography>
             <Stack direction="row" spacing={2} flexWrap="wrap">
-              {['Tổng', 'Hoàn thành', 'Chưa hoàn thành', 'Quá hạn', 'Sắp đến hạn'].map((label, index) => {
-                const value =
-                  index === 0
-                    ? stats.total
-                    : index === 1
-                    ? stats.completed
-                    : index === 2
-                    ? stats.pending
-                    : index === 3
-                    ? stats.overdue
-                    : stats.dueSoon;
-                return (
-                  <Paper key={label} variant="outlined" sx={{ p: 2, minWidth: 130, flex: '1 1 140px' }}>
-                    <Typography color="text.secondary" variant="subtitle2">
-                      {label}
-                    </Typography>
-                    {loading ? (
-                      <Skeleton width={60} />
-                    ) : (
-                      <Typography variant="h5">{value}</Typography>
-                    )}
-                  </Paper>
-                );
-              })}
+              {[
+                { label: 'Tổng', value: stats.total },
+                { label: 'Todo', value: stats.todo },
+                { label: 'Đang làm', value: stats.inProgress },
+                { label: 'Hoàn thành', value: stats.done },
+                { label: 'Quá hạn', value: stats.overdue },
+                { label: 'Đã hủy', value: stats.cancelled },
+              ].map(({ label, value }) => (
+                <Paper key={label} variant="outlined" sx={{ p: 2, minWidth: 110, flex: '1 1 120px' }}>
+                  <Typography color="text.secondary" variant="subtitle2">
+                    {label}
+                  </Typography>
+                  {loading ? (
+                    <Skeleton width={60} />
+                  ) : (
+                    <Typography variant="h5">{value}</Typography>
+                  )}
+                </Paper>
+              ))}
             </Stack>
             <Box sx={{ mt: 3 }}>
               <Button component={RouterLink} to="/todos" variant="contained">

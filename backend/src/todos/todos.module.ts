@@ -5,7 +5,12 @@ import { Todo } from './entities/todo.entity';
 import { TodosController } from './todos.controller';
 import { TodosService } from './todos.service';
 
-/** Phase 3: CRUD /todos */
+/**
+ * Todos Module
+ * - Handles CRUD operations for todos
+ * - Provides action endpoints: start, complete, cancel
+ * - Includes markOverdueTodosIfNeeded() method for external cron scheduling
+ */
 @Module({
   imports: [TypeOrmModule.forFeature([Todo, Tag])],
   controllers: [TodosController],

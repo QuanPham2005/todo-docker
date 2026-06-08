@@ -76,9 +76,11 @@ type StatsOverview = {
   totalUsers: number;
   totalAdmins: number;
   totalTodos: number;
-  completedTodos: number;
-  pendingTodos: number;
-  overdueTodos: number;
+  todo: number;
+  in_progress: number;
+  done: number;
+  overdue: number;
+  cancelled: number;
 };
 
 export default function AdminDashboard() {
@@ -213,9 +215,11 @@ export default function AdminDashboard() {
       { label: 'Người dùng', value: overview?.totalUsers ?? 0, color: 'primary' as const },
       { label: 'Admin', value: overview?.totalAdmins ?? 0, color: 'info' as const },
       { label: 'Tổng todo', value: overview?.totalTodos ?? 0, color: 'secondary' as const },
-      { label: 'Hoàn thành', value: overview?.completedTodos ?? 0, color: 'success' as const },
-      { label: 'Chưa hoàn thành', value: overview?.pendingTodos ?? 0, color: 'warning' as const },
-      { label: 'Quá hạn', value: overview?.overdueTodos ?? 0, color: 'error' as const },
+      { label: 'Chưa làm', value: overview?.todo ?? 0, color: 'default' as const },
+      { label: 'Đang làm', value: overview?.in_progress ?? 0, color: 'info' as const },
+      { label: 'Hoàn thành', value: overview?.done ?? 0, color: 'success' as const },
+      { label: 'Quá hạn', value: overview?.overdue ?? 0, color: 'error' as const },
+      { label: 'Đã hủy', value: overview?.cancelled ?? 0, color: 'warning' as const },
     ],
     [overview],
   );

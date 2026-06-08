@@ -35,11 +35,17 @@ export class Todo {
   @Column({ type: 'text', default: 'Low' })
   priority!: string;
 
-  @Column({ default: false })
-  completed!: boolean;
+  // 5-state status system: todo, in_progress, done, overdue, cancelled
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'todo',
+  })
+  status!: 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
 
-  @Column({ type: 'varchar', length: 20, default: 'pending' })
-  status!: 'pending' | 'completed' | 'overdue';
+  // Required reason when status is cancelled; null for other statuses
+  @Column({ type: 'text', nullable: true, name: 'cancellation_reason' })
+  cancellationReason?: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

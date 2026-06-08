@@ -3,7 +3,7 @@ import { IsIn, IsNotEmpty, IsOptional, IsString, IsArray, ArrayNotEmpty, ArrayUn
 export class CreateTodoDto {
   @IsNotEmpty()
   @IsString()
-  title: string;
+  title!: string;
 
   @IsOptional()
   @IsString()
@@ -24,3 +24,4 @@ export class CreateTodoDto {
   @IsString({ each: true })
   tags?: string[];
 }
+

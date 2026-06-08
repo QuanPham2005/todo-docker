@@ -1,4 +1,4 @@
-import { IsIn, IsNotEmpty, IsOptional, IsString, IsBoolean, IsArray, ArrayNotEmpty, ArrayUnique, IsDateString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, IsArray, ArrayNotEmpty, ArrayUnique, IsDateString } from 'class-validator';
 
 export class UpdateTodoDto {
   @IsOptional()
@@ -19,13 +19,10 @@ export class UpdateTodoDto {
   priority?: 'Low' | 'Medium' | 'High';
 
   @IsOptional()
-  @IsBoolean()
-  completed?: boolean;
-
-  @IsOptional()
   @IsArray()
   @ArrayNotEmpty()
   @ArrayUnique()
   @IsString({ each: true })
   tags?: string[];
 }
+

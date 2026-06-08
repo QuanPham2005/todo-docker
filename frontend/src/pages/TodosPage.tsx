@@ -25,7 +25,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DoneIcon from '@mui/icons-material/Done';
 import UndoIcon from '@mui/icons-material/Undo';
 import SearchIcon from '@mui/icons-material/Search';
-import { fetchTodos, createTodo, updateTodo, toggleTodo, deleteTodo } from '../api/todos.api';
+import { fetchTodos, createTodo, updateTodo, startTodo, completeTodo, cancelTodo, deleteTodo } from '../api/todos.api';
 
 const priorities = ['Low', 'Medium', 'High'] as const;
 
@@ -36,14 +36,23 @@ const priorityColors = {
   High: '#f44336',   // Red
 } as const;
 
+// Status colors for visual distinction (MUI color variants)
+const statusColorMap: Record<string, 'default' | 'info' | 'success' | 'error' | 'warning'> = {
+  todo: 'default',       // Gray
+  in_progress: 'info',   // Blue
+  done: 'success',       // Green
+  overdue: 'error',      // Red
+  cancelled: 'warning',  // Orange
+};
+
 type TodoItem = {
   id: number;
   title: string;
   description: string | null;
   dueDate: string | null;
   priority: string;
-  completed: boolean;
-  status: 'pending' | 'completed' | 'overdue';
+  status: 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
+  cancellationReason?: string | null;
   tags: Array<{ name: string }>;
 };
 
@@ -66,7 +75,7 @@ const initialForm: TodoForm = {
 export default function TodosPage() {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<'all' | 'completed' | 'pending' | 'overdue'>('all');
+  const [status, setStatus] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled'>('all');
   const [priority, setPriority] = useState('all');
   const [sortBy, setSortBy] = useState('due_date');
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
@@ -78,6 +87,8 @@ export default function TodosPage() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<TodoForm>(initialForm);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
+  const [cancelingTodoId, setCancelingTodoId] = useState<number | null>(null);
+  const [cancellationReason, setCancellationReason] = useState('');
 
   const loadTodos = () => {
     setLoading(true);
@@ -108,7 +119,7 @@ export default function TodosPage() {
   };
 
   useEffect(() => {
-    loadTodos();
+    loadTodos(); // Refresh both the todo list and stats after action
   }, [page, status, priority, sortBy, order, search]);
 
   const resetForm = () => {
@@ -169,14 +180,66 @@ export default function TodosPage() {
     });
   };
 
-  const handleToggle = async (todo: TodoItem) => {
+  // Starts a todo: transitions from 'todo' to 'in_progress'
+  // After any status change, both summary and todo list must be
+  // refreshed together to prevent display inconsistency.
+  const handleStart = async (todo: TodoItem) => {
     setError(null);
     try {
-      const updated = await toggleTodo(todo.id);
-      setTodos((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      await startTodo(todo.id);
+      // Refresh both the todo list and stats after action
+      loadTodos(); // Refresh both the todo list and stats after action
     } catch {
-      setError('Không thể cập nhật trạng thái todo.');
+      setError('Không thể bắt đầu todo.');
     }
+  };
+
+  // Completes a todo: transitions from 'todo' or 'in_progress' to 'done'
+  // After any status change, both summary and todo list must be
+  // refreshed together to prevent display inconsistency.
+  const handleComplete = async (todo: TodoItem) => {
+    setError(null);
+    try {
+      await completeTodo(todo.id);
+      // Refresh both the todo list and stats after action
+      loadTodos(); // Refresh both the todo list and stats after action
+    } catch {
+      setError('Không thể hoàn thành todo.');
+    }
+  };
+
+  // Cancels a todo with required reason: transitions to 'cancelled'
+  // After any status change, both summary and todo list must be
+  // refreshed together to prevent display inconsistency.
+  const handleCancelClick = (todoId: number) => {
+    setCancelingTodoId(todoId);
+    setCancellationReason('');
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!cancelingTodoId) return;
+
+    if (cancellationReason.trim().length < 10) {
+      setError('Lý do hủy phải có ít nhất 10 ký tự');
+      return;
+    }
+
+    setError(null);
+    try {
+      await cancelTodo(cancelingTodoId, cancellationReason);
+      // Refresh both the todo list and stats after action
+      loadTodos();
+      setCancelingTodoId(null);
+      setCancellationReason('');
+      loadTodos();
+    } catch {
+      setError('Không thể hủy todo.');
+    }
+  };
+
+  const handleCancelCancel = () => {
+    setCancelingTodoId(null);
+    setCancellationReason('');
   };
 
   const handleDelete = async (todoId: number) => {
@@ -198,18 +261,13 @@ export default function TodosPage() {
   };
 
   const stats = useMemo(() => {
-    const today = normalizeDate(new Date());
-    const overdueCount = todos.filter((todo) => {
-      const dueDate = normalizeDate(todo.dueDate ? new Date(todo.dueDate) : null);
-      return !todo.completed && dueDate !== null && dueDate < today!;
-    }).length;
-    const completedCount = todos.filter((todo) => todo.completed).length;
-    const pendingCount = todos.filter((todo) => {
-      const dueDate = normalizeDate(todo.dueDate ? new Date(todo.dueDate) : null);
-      const isOverdue = dueDate !== null && dueDate < today!;
-      return !todo.completed && !isOverdue;
-    }).length;
-    return { overdueCount, completedCount, pendingCount };
+    return {
+      todoCount: todos.filter((todo) => todo.status === 'todo').length,
+      inProgressCount: todos.filter((todo) => todo.status === 'in_progress').length,
+      doneCount: todos.filter((todo) => todo.status === 'done').length,
+      overdueCount: todos.filter((todo) => todo.status === 'overdue').length,
+      cancelledCount: todos.filter((todo) => todo.status === 'cancelled').length,
+    };
   }, [todos]);
 
   return (
@@ -313,16 +371,16 @@ export default function TodosPage() {
                 label="Trạng thái"
                 value={status}
                 onChange={(event: SelectChangeEvent<string>) => {
-                  setStatus(event.target.value as 'all' | 'completed' | 'pending' | 'overdue');
+                  setStatus(event.target.value as 'all' | 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled');
                   setPage(1);
                 }}
               >
                 <MenuItem value="all">Tất cả</MenuItem>
-                <MenuItem value="pending">Chưa hoàn thành</MenuItem>
-  <Typography variant="body2" color="text.secondary" sx={{ pl: 2, py: 1 }}>Hoàn thành: {stats.completedCount}</Typography>
-  <Typography variant="body2" color="text.secondary" sx={{ pl: 2, py: 1 }}>Quá hạn: {stats.overdueCount}</Typography>
-                <MenuItem value="completed">Hoàn thành</MenuItem>
+                <MenuItem value="todo">Todo</MenuItem>
+                <MenuItem value="in_progress">Đang làm</MenuItem>
+                <MenuItem value="done">Hoàn thành</MenuItem>
                 <MenuItem value="overdue">Quá hạn</MenuItem>
+                <MenuItem value="cancelled">Đã hủy</MenuItem>
               </Select>
             </FormControl>
             <FormControl fullWidth>
@@ -390,76 +448,98 @@ export default function TodosPage() {
             </Box>
           ) : (
             <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-              {todos.map((todo) => {
-                const dueDate = todo.dueDate ? normalizeDate(new Date(todo.dueDate)) : null;
-                const today = normalizeDate(new Date());
-                const isOverdue = !todo.completed && dueDate !== null && dueDate < today!;
-                return (
-                  <Paper key={todo.id} sx={{ p: 2, borderRadius: 2, boxShadow: 1 }}>
-                    <Stack spacing={1}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                        <Stack>
-                          <Typography variant="h6" fontWeight={700}>
-                            {todo.title}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box
-                              sx={{
-                                width: 12,
-                                height: 12,
-                                borderRadius: '50%',
-                                backgroundColor: priorityColors[todo.priority as keyof typeof priorityColors],
-                                opacity: 0.8
-                              }}
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                              {todo.priority} • {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt ngày'}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                        <Chip
-                          label={todo.completed ? 'Hoàn thành' : isOverdue ? 'Quá hạn' : 'Chưa hoàn thành'}
-                          color={todo.completed ? 'success' : isOverdue ? 'error' : 'warning'}
-                          size="small"
-                        />
-                      </Stack>
-
-                      {todo.description ? (
-                        <Typography variant="body2" color="text.secondary">
-                          {todo.description}
+              {todos.map((todo) => (
+                <Paper key={todo.id} sx={{ p: 2, borderRadius: 2, boxShadow: 1 }}>
+                  <Stack spacing={1}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                      <Stack>
+                        <Typography variant="h6" fontWeight={700}>
+                          {todo.title}
                         </Typography>
-                      ) : null}
-
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
-                        {todo.tags.map((tag) => (
-                          <Chip key={tag.name} label={tag.name} size="small" />
-                        ))}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: '50%',
+                              backgroundColor: priorityColors[todo.priority as keyof typeof priorityColors],
+                              opacity: 0.8
+                            }}
+                          />
+                          <Typography variant="body2" color="text.secondary">
+                            {todo.priority} • {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt ngày'}
+                          </Typography>
+                        </Box>
                       </Stack>
-
-                      <CardActions sx={{ justifyContent: 'flex-end', px: 0, py: 1 }}>
-                        {!isOverdue && (
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => handleToggle(todo)}
-                            startIcon={todo.completed ? <UndoIcon /> : <DoneIcon />}
-                          >
-                            {todo.completed ? 'Khôi phục' : 'Hoàn thành'}
-                          </Button>
-                        )}
-                        {!isOverdue && (
-                          <Button size="small" onClick={() => handleEdit(todo)} startIcon={<EditIcon />}>
-                            Sửa
-                          </Button>
-                        )}
-                        <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
-                          Xóa
-                        </Button>
-                      </CardActions>
+                      <Chip
+                        label={
+                          todo.status === 'todo' ? 'Todo'
+                          : todo.status === 'in_progress' ? 'Đang làm'
+                          : todo.status === 'done' ? 'Hoàn thành'
+                          : todo.status === 'overdue' ? 'Quá hạn'
+                          : 'Đã hủy'
+                        }
+                        color={statusColorMap[todo.status]}
+                        size="small"
+                      />
                     </Stack>
-                  </Paper>
-                );
-              })}
+
+                    {todo.description ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {todo.description}
+                      </Typography>
+                    ) : null}
+
+                    {todo.cancellationReason && todo.status === 'cancelled' ? (
+                      <Typography variant="caption" color="error" sx={{ fontStyle: 'italic' }}>
+                        Đã hủy: {todo.cancellationReason}
+                      </Typography>
+                    ) : null}
+
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {todo.tags.map((tag) => (
+                        <Chip key={tag.name} label={tag.name} size="small" />
+                      ))}
+                    </Stack>
+
+                    <CardActions sx={{ justifyContent: 'flex-end', px: 0, py: 1 }}>
+                      {/* Show action buttons based on current status */}
+                      {todo.status === 'todo' && (
+                        <>
+                          <Button size="small" onClick={() => handleStart(todo)} startIcon={<EditIcon />}>
+                            Bắt đầu
+                          </Button>
+                          <Button size="small" variant="outlined" onClick={() => handleComplete(todo)} startIcon={<DoneIcon />}>
+                            Hoàn thành
+                          </Button>
+                          <Button size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
+                            Hủy
+                          </Button>
+                        </>
+                      )}
+                      {todo.status === 'in_progress' && (
+                        <>
+                          <Button size="small" variant="outlined" onClick={() => handleComplete(todo)} startIcon={<DoneIcon />}>
+                            Hoàn thành
+                          </Button>
+                          <Button size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
+                            Hủy
+                          </Button>
+                        </>
+                      )}
+                      {todo.status === 'overdue' && (
+                        <Button size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
+                          Hủy
+                        </Button>
+                      )}
+                      {/* No action buttons for done or cancelled */}
+                      <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
+                        Xóa
+                      </Button>
+                    </CardActions>
+                  </Stack>
+                </Paper>
+              ))}
             </Box>
           )}
         </Paper>
@@ -476,11 +556,48 @@ export default function TodosPage() {
         </Box>
 
         <Paper sx={{ p: 2, mt: 2 }}>
-          <Typography variant="subtitle1">Tóm tắt</Typography>
-          <Typography variant="body2">Todo chưa hoàn thành: {stats.pendingCount}</Typography>
-          <Typography variant="body2">Todo hoàn thành: {stats.completedCount}</Typography>
-          <Typography variant="body2">Todo quá hạn: {stats.overdueCount}</Typography>
+          <Typography variant="subtitle1">Tóm tắt (5 trạng thái)</Typography>
+          <Typography variant="body2">Todo: {stats.todoCount}</Typography>
+          <Typography variant="body2">Đang làm: {stats.inProgressCount}</Typography>
+          <Typography variant="body2">Hoàn thành: {stats.doneCount}</Typography>
+          <Typography variant="body2">Quá hạn: {stats.overdueCount}</Typography>
+          <Typography variant="body2">Đã hủy: {stats.cancelledCount}</Typography>
         </Paper>
+
+        {/* Cancel Modal */}
+        {cancelingTodoId !== null && (
+          <Paper sx={{ p: 3, mt: 2, border: '1px solid #ddd', backgroundColor: '#fafafa' }}>
+            <Typography variant="h6" gutterBottom>Hủy Todo</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Nhập lý do hủy (tối thiểu 10 ký tự):
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              placeholder="Lý do hủy..."
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              error={cancellationReason.length > 0 && cancellationReason.length < 10}
+              helperText={
+                cancellationReason.length > 0 && cancellationReason.length < 10
+                  ? `Cần ${10 - cancellationReason.length} ký tự nữa`
+                  : ''
+              }
+            />
+            <Stack direction="row" spacing={1} sx={{ mt: 2, justifyContent: 'flex-end' }}>
+              <Button onClick={handleCancelCancel}>Hủy bỏ</Button>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={handleCancelConfirm}
+                disabled={cancellationReason.trim().length < 10}
+              >
+                Xác nhận hủy
+              </Button>
+            </Stack>
+          </Paper>
+        )}
       </Box>
 
     </Box>

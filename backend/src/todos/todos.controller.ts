@@ -13,6 +13,7 @@ import {
 import { TodosService } from './todos.service';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
+import { CancelTodoDto } from './dto/cancel-todo.dto';
 import { QueryTodoDto } from './dto/query-todo.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -64,11 +65,28 @@ export class TodosController {
     return { message: 'Todo đã được xoá' };
   }
 
-  @Patch(':id/toggle')
-  async toggle(
+  @Patch(':id/start')
+  async start(
     @CurrentUser() user: User,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.todosService.toggleCompleted(id, user);
+    return this.todosService.startTodo(id, user);
+  }
+
+  @Patch(':id/complete')
+  async complete(
+    @CurrentUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.todosService.completeTodo(id, user);
+  }
+
+  @Patch(':id/cancel')
+  async cancel(
+    @CurrentUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CancelTodoDto,
+  ) {
+    return this.todosService.cancelTodo(id, user, dto.reason);
   }
 }
