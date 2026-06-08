@@ -215,19 +215,32 @@ Luôn kiểm tra lại trước khi coi dự án “xong”:
 - **Cách tránh lần sau:** Luôn dùng port 5433 trong `.env` dev hoặc tắt PG local trước khi `docker compose up`
 - **Trạng thái:** Đã fix
 
+### [2026-06-08] — Code review fixes (5-state todo system)
+
+- **Phase:** 3–7
+- **Đã sửa:**
+  - `init.sql`: thêm `status`, `cancellation_reason`, `TIMESTAMPTZ`; bỏ `completed`
+  - Cron overdue: chỉ `in_progress`, chạy mỗi phút (`EVERY_MINUTE`)
+  - `GET /todos/stats` — thống kê 5 trạng thái theo user (đặt **trước** `GET :id`)
+  - Redux: `fetchTodosAndSummary` dùng `items` + `total`; admin filters refetch
+  - `TodosPage` / `DashboardPage`: summary từ API, không đếm theo trang
+  - `performTodoAction`: `PATCH` đúng URL, refetch giữ page/limit
+- **Lưu ý:** Sau khi đổi route backend, `docker compose restart backend` nếu `/todos/stats` trả 400
+- **Trạng thái:** Đã fix + smoke test OK
+
 ---
 
-## Trạng thái dự án (cập nhật lần cuối: 2026-06-03)
+## Trạng thái dự án (cập nhật lần cuối: 2026-06-08)
 
 | Hạng mục | Trạng thái |
 |----------|------------|
-| README / spec | Có |
-| Backend (NestJS) | Phase 1 — skeleton + TypeORM entities + `/health` |
-| Frontend (React+Vite) | Phase 1 — skeleton |
-| Docker DB | Chạy port **5433**, schema OK |
-| Build | Backend + frontend build OK |
+| Backend | Auth + Todos 5-state + Admin stats + cron overdue |
+| Frontend | TodosPage, Dashboard, AdminDashboard + Redux |
+| Docker | `db:5433`, `backend:3000`, `frontend:5174` |
+| Build | Backend + frontend **OK** |
+| Smoke test | start → complete → cancel → stats **OK** |
 
-**Bước tiếp theo:** Phase 2 — Auth (register, login, JWT, guards).
+**Chạy local:** `docker compose up --build` — frontend tại http://localhost:5174
 
 ---
 

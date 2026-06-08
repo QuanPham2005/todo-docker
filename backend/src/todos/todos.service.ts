@@ -11,6 +11,7 @@ import { User } from '../users/entities/user.entity';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { QueryTodoDto } from './dto/query-todo.dto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 // Status constants — single source of truth for all status values
 type TodoStatus = 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
@@ -25,7 +26,7 @@ const TODO_STATUS = {
 
 // Defines which transitions are valid from each status — no other transitions allowed
 const VALID_TRANSITIONS: Record<TodoStatus, TodoStatus[]> = {
-  todo: [TODO_STATUS.IN_PROGRESS, TODO_STATUS.DONE, TODO_STATUS.CANCELLED, TODO_STATUS.OVERDUE],
+  todo: [TODO_STATUS.IN_PROGRESS, TODO_STATUS.DONE, TODO_STATUS.CANCELLED],
   in_progress: [TODO_STATUS.DONE, TODO_STATUS.CANCELLED, TODO_STATUS.OVERDUE],
   overdue: [TODO_STATUS.CANCELLED],
   done: [],
@@ -35,10 +36,8 @@ const VALID_TRANSITIONS: Record<TodoStatus, TodoStatus[]> = {
 // Min length for cancellation reason to ensure user provides meaningful explanation
 const MIN_CANCELLATION_REASON_LENGTH = 10;
 
-// Statuses that can automatically transition to 'overdue'
-  // Only in_progress todos can become overdue when deadline passes.
-  // todo (not started) stays as todo, done/cancelled are final states.
-const STATUSES_THAT_CAN_EXPIRE = [TODO_STATUS.IN_PROGRESS];
+// Statuses that can automatically transition to 'overdue' (cron job only)
+const STATUSES_THAT_CAN_EXPIRE: TodoStatus[] = [TODO_STATUS.IN_PROGRESS];
 
 // Helper: Check if transition is valid
 function isValidTransition(from: TodoStatus, to: TodoStatus): boolean {
@@ -53,6 +52,13 @@ function getTransitionErrorMessage(from: TodoStatus, to: TodoStatus): string {
 
 @Injectable()
 export class TodosService {
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleOverdueTodosCron() {
+    const count = await this.markOverdueTodosIfNeeded();
+    if (count > 0) {
+      console.log(`Marked ${count} todos as overdue in scheduled job`);
+    }
+  }
   constructor(
     @InjectRepository(Todo)
     private readonly todosRepository: Repository<Todo>,
@@ -303,22 +309,48 @@ export class TodosService {
   }
 
   /**
+   * PUBLIC: Returns per-status counts for the current user (all 5 keys, default 0).
+   */
+  async getStatusSummaryForUser(userId: number) {
+    const rows = await this.todosRepository
+      .createQueryBuilder('todo')
+      .select('todo.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .where('todo.user_id = :userId', { userId })
+      .groupBy('todo.status')
+      .getRawMany<{ status: TodoStatus; count: string }>();
+
+    const summary = {
+      todo: 0,
+      in_progress: 0,
+      done: 0,
+      overdue: 0,
+      cancelled: 0,
+    };
+
+    for (const row of rows) {
+      if (row.status in summary) {
+        summary[row.status] = parseInt(row.count, 10);
+      }
+    }
+
+    return summary;
+  }
+
+  /**
    * PUBLIC: Marks todos as overdue if their deadline has passed.
-   * Called periodically to keep overdue status up-to-date.
-   * Only affects todos in 'todo' or 'in_progress' states.
-   * Cancelled and done tasks are never changed.
+   * Only affects todos in 'in_progress' — 'todo' stays until user starts work.
+   * done and cancelled are never changed.
    */
   async markOverdueTodosIfNeeded(): Promise<number> {
     const now = new Date();
 
-    // Only in_progress todos become overdue when deadline passes.
-  // todo, done, and cancelled are never touched by this job.
-  const todosToMarkOverdue = await this.todosRepository.find({
-    where: {
-      status: TODO_STATUS.IN_PROGRESS,
-      dueDate: LessThan(now),
-    },
-  });
+    const todosToMarkOverdue = await this.todosRepository.find({
+      where: STATUSES_THAT_CAN_EXPIRE.map((status) => ({
+        status,
+        dueDate: LessThan(now),
+      })),
+    });
 
     if (todosToMarkOverdue.length === 0) {
       return 0;

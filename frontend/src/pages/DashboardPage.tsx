@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -8,28 +8,38 @@ import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
-import { fetchTodos } from '../api/todos.api';
-
-type TodoItem = {
-  id: number;
-  title: string;
-  description: string | null;
-  dueDate: string | null;
-  priority: string;
-  status: 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
-};
+import { fetchTodoStats } from '../api/todos.api';
 
 export default function DashboardPage() {
-  const [todos, setTodos] = useState<TodoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    todo: 0,
+    inProgress: 0,
+    done: 0,
+    overdue: 0,
+    cancelled: 0,
+  });
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetchTodos({ page: 1, limit: 100, status: 'all', sortBy: 'due_date', order: 'asc' })
-      .then((data) => {
-        setTodos(data.items || []);
+    fetchTodoStats()
+      .then((statsData) => {
+        setStats({
+          total:
+            statsData.todo +
+            statsData.in_progress +
+            statsData.done +
+            statsData.overdue +
+            statsData.cancelled,
+          todo: statsData.todo,
+          inProgress: statsData.in_progress,
+          done: statsData.done,
+          overdue: statsData.overdue,
+          cancelled: statsData.cancelled,
+        });
       })
       .catch(() => {
         setError('Không thể tải dữ liệu todo. Vui lòng thử lại.');
@@ -38,17 +48,6 @@ export default function DashboardPage() {
         setLoading(false);
       });
   }, []);
-
-  const stats = useMemo(() => {
-    return {
-      total: todos.length,
-      todo: todos.filter((t) => t.status === 'todo').length,
-      inProgress: todos.filter((t) => t.status === 'in_progress').length,
-      done: todos.filter((t) => t.status === 'done').length,
-      overdue: todos.filter((t) => t.status === 'overdue').length,
-      cancelled: todos.filter((t) => t.status === 'cancelled').length,
-    };
-  }, [todos]);
 
   return (
     <Box sx={{ display: 'grid', gap: 3 }}>

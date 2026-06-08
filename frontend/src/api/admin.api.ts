@@ -24,6 +24,11 @@ export async function fetchAdminStats() {
   return api.get('/admin/stats').then((res) => res.data);
 }
 
+// This is now handled by Redux
+// export async function fetchAdminTodos(params: Record<string, string | number>) {
+//   return api.get('/admin/todos', { params }).then((res) => res.data);
+// }
+
 export async function fetchAdminUserStats() {
   return api.get('/admin/stats/users').then((res) => res.data);
 }

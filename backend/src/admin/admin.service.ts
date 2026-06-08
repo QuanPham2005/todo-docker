@@ -6,7 +6,6 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { QueryTodoDto } from '../todos/dto/query-todo.dto';
 import { QueryUserDto } from './dto/query-user.dto';
 import { TodosService } from '../todos/todos.service';
-import { SchedulerRegistry } from '@nestjs/schedule';
 
 @Injectable()
 export class AdminService {
@@ -16,7 +15,6 @@ export class AdminService {
     @InjectRepository(Todo)
     private readonly todosRepository: Repository<Todo>,
     private readonly todosService: TodosService,
-    private readonly schedulerRegistry: SchedulerRegistry,
   ) {}
 
   async getUsers(query: QueryUserDto) {

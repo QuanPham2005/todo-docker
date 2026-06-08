@@ -27,6 +27,10 @@ export async function cancelTodo(id: number, reason: string) {
   return api.patch(`/todos/${id}/cancel`, { reason }).then((res) => res.data);
 }
 
+export async function fetchTodoStats() {
+  return api.get('/todos/stats').then((res) => res.data);
+}
+
 export async function deleteTodo(id: number) {
   return api.delete(`/todos/${id}`).then((res) => res.data);
 }

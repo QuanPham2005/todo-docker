@@ -31,6 +31,11 @@ export class TodosController {
     return this.todosService.findAllForUser(user, query);
   }
 
+  @Get('stats')
+  async getStats(@CurrentUser() user: User) {
+    return this.todosService.getStatusSummaryForUser(user.id);
+  }
+
   @Get(':id')
   async findOne(
     @CurrentUser() user: User,

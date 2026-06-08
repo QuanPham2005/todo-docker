@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { useSelector, useDispatch } from 'react-redux';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -23,13 +24,18 @@ import Chip from '@mui/material/Chip';
 import Pagination from '@mui/material/Pagination';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
-import { fetchAdminUsers, banAdminUser, deleteAdminUser, fetchAdminTodos, deleteAdminTodo, fetchAdminStats, fetchAdminUserStats } from '../../api/admin.api';
+import { fetchTodosAndSummary, type AdminTodosQuery } from '../../store/todosSlice';
+import api from '../../api/axios';
+import { banAdminUser, deleteAdminUser, deleteAdminTodo } from '../../api/admin.api';
+
 
 const todoStatusOptions = [
   { value: 'all', label: 'Tất cả' },
-  { value: 'pending', label: 'Chưa hoàn thành' },
-  { value: 'completed', label: 'Hoàn thành' },
+  { value: 'todo', label: 'Chưa làm' },
+  { value: 'in_progress', label: 'Đang làm' },
+  { value: 'done', label: 'Hoàn thành' },
   { value: 'overdue', label: 'Quá hạn' },
+  { value: 'cancelled', label: 'Đã hủy' },
 ];
 
 const todoSortOptions = [
@@ -54,8 +60,7 @@ type AdminTodo = {
   id: number;
   title: string;
   priority: string;
-  completed: boolean;
-  status: 'pending' | 'completed' | 'overdue';
+  status: 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
   dueDate: string | null;
   user: { email: string };
   tags: Array<{ name: string }>;
@@ -68,99 +73,87 @@ type UserStat = {
   isBanned: boolean;
   totalTodos: number;
   completedTodos: number;
-  pendingTodos: number;
+  todoTodos: number;
   completionRate: number;
-};
-
-type StatsOverview = {
-  totalUsers: number;
-  totalAdmins: number;
-  totalTodos: number;
-  todo: number;
-  in_progress: number;
-  done: number;
-  overdue: number;
-  cancelled: number;
 };
 
 export default function AdminDashboard() {
   const [tabIndex, setTabIndex] = useState(0);
-  const [overview, setOverview] = useState<StatsOverview | null>(null);
   const [userStats, setUserStats] = useState<UserStat[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [todos, setTodos] = useState<AdminTodo[]>([]);
   const [userLoading, setUserLoading] = useState(false);
-  const [todoLoading, setTodoLoading] = useState(false);
-  const [overviewLoading, setOverviewLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [userSearch, setUserSearch] = useState('');
   const [userPage, setUserPage] = useState(1);
   const [userTotal, setUserTotal] = useState(0);
+
+  // Get Redux state and dispatch
+  const { list: todos, total: todoTotal, summary: overview, isLoading: todoLoading } = useSelector(
+    (state: any) => state.todos,
+  );
+  const overviewLoading = todoLoading;
+  const dispatch = useDispatch();
+  const currentUser = useAuthStore((state) => state.user);
+
+  // Filter controls for todos
   const [todoSearch, setTodoSearch] = useState('');
   const [todoStatus, setTodoStatus] = useState('all');
   const [todoPriority, setTodoPriority] = useState('all');
   const [todoSortBy, setTodoSortBy] = useState('due_date');
   const [todoOrder, setTodoOrder] = useState<'asc' | 'desc'>('asc');
   const [todoPage, setTodoPage] = useState(1);
-  const [todoTotal, setTodoTotal] = useState(0);
-  const currentUser = useAuthStore((state) => state.user);
 
-  const loadOverview = () => {
-    setOverviewLoading(true);
-    fetchAdminStats()
-      .then(setOverview)
-      .catch(() => setError('Không thể tải thống kê tổng quan'))
-      .finally(() => setOverviewLoading(false));
-  };
-
-  const loadUserStats = () => {
-    fetchAdminUserStats().then(setUserStats).catch(() => null);
-  };
-
-  const loadUsers = () => {
-    setUserLoading(true);
-    setError(null);
-    fetchAdminUsers({ page: userPage, limit: 10, search: userSearch })
-      .then((data) => {
-        setUsers(data.items || []);
-        setUserTotal(data.total || 0);
-      })
-      .catch(() => setError('Không thể tải danh sách người dùng'))
-      .finally(() => setUserLoading(false));
-  };
-
-  const loadTodos = () => {
-    setTodoLoading(true);
-    setError(null);
-    const params: Record<string, string | number> = {
+  const adminTodoQuery: AdminTodosQuery = useMemo(
+    () => ({
       page: todoPage,
       limit: 10,
       status: todoStatus,
+      priority: todoPriority,
       sortBy: todoSortBy,
-      order: todoOrder,
-    };
-    if (todoSearch.trim()) {
-      params.search = todoSearch.trim();
-    }
-    if (todoPriority !== 'all') {
-      params.priority = todoPriority;
-    }
+      order: todoOrder.toUpperCase(),
+      search: todoSearch,
+    }),
+    [todoPage, todoStatus, todoPriority, todoSortBy, todoOrder, todoSearch],
+  );
 
-    fetchAdminTodos(params)
-      .then((data) => {
-        setTodos(data.items || []);
-        setTodoTotal(data.total || 0);
-      })
-      .catch(() => setError('Không thể tải danh sách todo'))
-      .finally(() => setTodoLoading(false));
+  const loadAdminTodos = () => {
+    dispatch(fetchTodosAndSummary(adminTodoQuery) as any);
+  };
+
+  const loadUserStats = async () => {
+    try {
+      const response = await api.get('/admin/stats/users');
+      setUserStats(response.data);
+    } catch (error) {
+      console.error('Failed to load user stats:', error);
+    }
+  };
+
+  const loadUsers = async () => {
+    setUserLoading(true);
+    setError(null);
+    try {
+      const response = await api.get('/admin/users', {
+        params: {
+          page: userPage,
+          limit: 10,
+          search: userSearch
+        }
+      });
+      setUsers(response.data.items || []);
+      setUserTotal(response.data.total || 0);
+    } catch (error) {
+      setError('Không thể tải danh sách người dùng');
+    } finally {
+      setUserLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadOverview();
+    loadAdminTodos();
     loadUserStats();
     loadUsers();
-    loadTodos();
   }, []);
 
   useEffect(() => {
@@ -168,7 +161,7 @@ export default function AdminDashboard() {
   }, [userPage, userSearch]);
 
   useEffect(() => {
-    loadTodos();
+    loadAdminTodos();
   }, [todoPage, todoStatus, todoPriority, todoSortBy, todoOrder, todoSearch]);
 
   const handleBanToggle = async (user: AdminUser) => {
@@ -178,7 +171,8 @@ export default function AdminDashboard() {
       setUsers((current) =>
         current.map((item) => (item.id === user.id ? { ...item, isBanned: !item.isBanned } : item)),
       );
-      loadOverview();
+      // Refresh all data
+      dispatch(fetchTodosAndSummary(adminTodoQuery) as any);
       loadUserStats();
     } catch {
       setError('Không thể cập nhật trạng thái ban của người dùng');
@@ -191,7 +185,8 @@ export default function AdminDashboard() {
       await deleteAdminUser(id);
       setUsers((current) => current.filter((item) => item.id !== id));
       setUserTotal((prev) => Math.max(prev - 1, 0));
-      loadOverview();
+      // Refresh all data
+      dispatch(fetchTodosAndSummary(adminTodoQuery) as any);
       loadUserStats();
     } catch {
       setError('Không thể xoá người dùng');
@@ -202,9 +197,8 @@ export default function AdminDashboard() {
     setError(null);
     try {
       await deleteAdminTodo(id);
-      setTodos((current) => current.filter((item) => item.id !== id));
-      setTodoTotal((prev) => Math.max(prev - 1, 0));
-      loadOverview();
+      // Refresh the Redux store after deletion
+      dispatch(fetchTodosAndSummary(adminTodoQuery) as any);
     } catch {
       setError('Không thể xoá todo');
     }
@@ -460,7 +454,7 @@ export default function AdminDashboard() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  todos.map((todo) => (
+                  todos.map((todo: AdminTodo) => (
                     <TableRow key={todo.id} hover>
                       <TableCell>{todo.title}</TableCell>
                       <TableCell>{todo.user.email}</TableCell>
@@ -471,31 +465,25 @@ export default function AdminDashboard() {
                       <TableCell>
                         <Chip
                           label={
-                            todo.completed
-                              ? 'Hoàn thành'
-                              : todo.status === 'overdue' ||
-                                ((todo.status === 'pending' || !todo.status) &&
-                                  todo.dueDate &&
-                                  new Date(todo.dueDate) < new Date(new Date().toDateString()))
-                              ? 'Quá hạn'
-                              : 'Chưa hoàn thành'
+                            todo.status === 'done' ? 'Hoàn thành' :
+                            todo.status === 'in_progress' ? 'Đang làm' :
+                            todo.status === 'todo' ? 'Chưa làm' :
+                            todo.status === 'overdue' ? 'Quá hạn' :
+                            todo.status === 'cancelled' ? 'Đã hủy' : 'Không xác định'
                           }
                           color={
-                            todo.completed
-                              ? 'success'
-                              : todo.status === 'overdue' ||
-                                ((todo.status === 'pending' || !todo.status) &&
-                                  todo.dueDate &&
-                                  new Date(todo.dueDate) < new Date(new Date().toDateString()))
-                              ? 'error'
-                              : 'warning'
+                            todo.status === 'done' ? 'success' :
+                            todo.status === 'in_progress' ? 'info' :
+                            todo.status === 'todo' ? 'default' :
+                            todo.status === 'overdue' ? 'error' :
+                            todo.status === 'cancelled' ? 'warning' : 'default'
                           }
                           size="small"
                         />
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} flexWrap="wrap">
-                          {todo.tags.map((tag) => (
+                          {todo.tags.map((tag: { name: string }) => (
                             <Chip key={tag.name} label={tag.name} size="small" />
                           ))}
                         </Stack>
@@ -543,7 +531,7 @@ export default function AdminDashboard() {
                   <TableCell>Tạo lúc</TableCell>
                   <TableCell>Todo</TableCell>
                   <TableCell>Hoàn thành</TableCell>
-                  <TableCell>Chưa hoàn thành</TableCell>
+                  <TableCell>Chưa làm</TableCell>
                   <TableCell>Tỷ lệ</TableCell>
                 </TableRow>
               </TableHead>
@@ -561,7 +549,7 @@ export default function AdminDashboard() {
                       <TableCell>{new Date(stat.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>{stat.totalTodos}</TableCell>
                       <TableCell>{stat.completedTodos}</TableCell>
-                      <TableCell>{stat.pendingTodos}</TableCell>
+                      <TableCell>{stat.todoTodos}</TableCell>
                       <TableCell>{stat.completionRate}%</TableCell>
                     </TableRow>
                   ))
