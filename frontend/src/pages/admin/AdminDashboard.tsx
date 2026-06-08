@@ -220,35 +220,56 @@ export default function AdminDashboard() {
 
   return (
     <Box sx={{ display: 'grid', gap: 3 }}>
-      <Typography variant="h4">Quản trị hệ thống</Typography>
+      <Box>
+        <Typography variant="h4">Quản trị hệ thống</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Quản lý người dùng, công việc và theo dõi thống kê toàn hệ thống.
+        </Typography>
+      </Box>
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6">Tổng quan hệ thống</Typography>
+      <Box>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Tổng quan hệ thống
+        </Typography>
         {overviewLoading ? (
           <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
             <CircularProgress />
           </Box>
         ) : (
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: {
+                xs: 'repeat(2, 1fr)',
+                sm: 'repeat(4, 1fr)',
+                lg: 'repeat(8, 1fr)',
+              },
+            }}
+          >
             {summaryCards.map((card) => (
-              <Paper key={card.label} variant="outlined" sx={{ p: 2, flex: 1 }}>
-                <Typography color="text.secondary" variant="subtitle2">
+              <Paper key={card.label} sx={{ p: 2, borderRadius: 2.5 }}>
+                <Typography color="text.secondary" variant="caption" sx={{ fontWeight: 600 }}>
                   {card.label}
                 </Typography>
-                <Typography variant="h5" color={`${card.color}.main`}>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 800, mt: 0.5 }}
+                  color={card.color === 'default' ? 'text.primary' : `${card.color}.main`}
+                >
                   {card.value}
                 </Typography>
               </Paper>
             ))}
-          </Stack>
+          </Box>
         )}
-      </Paper>
+      </Box>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tabIndex} onChange={(_, newValue) => setTabIndex(newValue)}>
-          <Tab label="Users" />
-          <Tab label="Todos" />
+          <Tab label="Người dùng" />
+          <Tab label="Công việc" />
           <Tab label="Thống kê" />
         </Tabs>
       </Box>
