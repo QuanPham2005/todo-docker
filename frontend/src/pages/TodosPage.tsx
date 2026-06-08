@@ -25,7 +25,11 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DoneIcon from '@mui/icons-material/Done';
 import SearchIcon from '@mui/icons-material/Search';
 import { fetchTodos, fetchTodoStats, createTodo, updateTodo, startTodo, completeTodo, cancelTodo, deleteTodo } from '../api/todos.api';
-
+// Thêm vào phần import MUI
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 const priorities = ['Low', 'Medium', 'High'] as const;
 
 const statusLabels: Record<string, string> = {
@@ -135,10 +139,12 @@ export default function TodosPage() {
 
     fetchTodos(params)
       .then((data) => {
+        console.log('Todos fetched:', data.items);
         setTodos(data.items || []);
         setTotal(data.total || 0);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Error fetching todos:', err);
         setError('Không thể tải danh sách todo. Vui lòng thử lại.');
       })
       .finally(() => setLoading(false));
@@ -239,12 +245,13 @@ export default function TodosPage() {
   // After any status change, both summary and todo list must be
   // refreshed together to prevent display inconsistency.
   const handleCancelClick = (todoId: number) => {
+    setError(null);
     setCancelingTodoId(todoId);
     setCancellationReason('');
   };
 
   const handleCancelConfirm = async () => {
-    if (!cancelingTodoId) return;
+    if (cancelingTodoId === null) return;
 
     if (cancellationReason.trim().length < 10) {
       setError('Lý do hủy phải có ít nhất 10 ký tự');
@@ -508,41 +515,44 @@ export default function TodosPage() {
 
                     <CardActions sx={{ justifyContent: 'flex-end', px: 0, py: 1 }}>
                       {/* Show action buttons based on current status */}
-                      <Button size="small" onClick={() => handleEdit(todo)} startIcon={<EditIcon />}>
-                        Sửa
-                      </Button>
-                      {todo.status === 'todo' && (
-                        <>
-                          <Button size="small" onClick={() => handleStart(todo)}>
-                            Bắt đầu
-                          </Button>
-                          <Button size="small" variant="outlined" onClick={() => handleComplete(todo)} startIcon={<DoneIcon />}>
-                            Hoàn thành
-                          </Button>
-                          <Button size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
-                            Hủy
-                          </Button>
-                        </>
-                      )}
-                      {todo.status === 'in_progress' && (
-                        <>
-                          <Button size="small" variant="outlined" onClick={() => handleComplete(todo)} startIcon={<DoneIcon />}>
-                            Hoàn thành
-                          </Button>
-                          <Button size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
-                            Hủy
-                          </Button>
-                        </>
-                      )}
-                      {todo.status === 'overdue' && (
-                        <Button size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
-                          Hủy
+                      {/* For overdue, done, and cancelled: only show delete button */}
+                      {['overdue', 'done', 'cancelled'].includes(todo.status) ? (
+                        <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
+                          Xóa
                         </Button>
+                      ) : (
+                        <>
+                          <Button size="small" onClick={() => handleEdit(todo)} startIcon={<EditIcon />}>
+                            Sửa
+                          </Button>
+                          {todo.status === 'todo' && (
+                            <>
+                              <Button type="button" size="small" onClick={() => handleStart(todo)}>
+                                Bắt đầu
+                              </Button>
+                              <Button type="button" size="small" variant="outlined" onClick={() => handleComplete(todo)} startIcon={<DoneIcon />}>
+                                Hoàn thành
+                              </Button>
+                              <Button type="button" size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
+                                Hủy
+                              </Button>
+                            </>
+                          )}
+                          {todo.status === 'in_progress' && (
+                            <>
+                              <Button type="button" size="small" variant="outlined" onClick={() => handleComplete(todo)} startIcon={<DoneIcon />}>
+                                Hoàn thành
+                              </Button>
+                              <Button type="button" size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
+                                Hủy
+                              </Button>
+                            </>
+                          )}
+                          <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
+                            Xóa
+                          </Button>
+                        </>
                       )}
-                      {/* No action buttons for done or cancelled */}
-                      <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
-                        Xóa
-                      </Button>
                     </CardActions>
                   </Stack>
                 </Paper>
@@ -572,9 +582,15 @@ export default function TodosPage() {
         </Paper>
 
         {/* Cancel Modal */}
-        {cancelingTodoId !== null && (
-          <Paper sx={{ p: 3, mt: 2, border: '1px solid #ddd', backgroundColor: '#fafafa' }}>
-            <Typography variant="h6" gutterBottom>Hủy Todo</Typography>
+        {/* ✅ Cancel Dialog - overlay thực sự */}
+        <Dialog
+          open={cancelingTodoId !== null}
+          onClose={handleCancelCancel}
+          fullWidth
+          maxWidth="sm"
+        >
+          <DialogTitle>Hủy Todo</DialogTitle>
+          <DialogContent>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Nhập lý do hủy (tối thiểu 10 ký tự):
             </Typography>
@@ -591,20 +607,21 @@ export default function TodosPage() {
                   ? `Cần ${10 - cancellationReason.length} ký tự nữa`
                   : ''
               }
+              autoFocus
             />
-            <Stack direction="row" spacing={1} sx={{ mt: 2, justifyContent: 'flex-end' }}>
-              <Button onClick={handleCancelCancel}>Hủy bỏ</Button>
-              <Button
-                variant="contained"
-                color="error"
-                onClick={handleCancelConfirm}
-                disabled={cancellationReason.trim().length < 10}
-              >
-                Xác nhận hủy
-              </Button>
-            </Stack>
-          </Paper>
-        )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelCancel}>Hủy bỏ</Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleCancelConfirm}
+              disabled={cancellationReason.trim().length < 10}
+            >
+              Xác nhận hủy
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
 
     </Box>
