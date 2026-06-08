@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
-import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -12,64 +12,43 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import InputAdornment from '@mui/material/InputAdornment';
-import Chip from '@mui/material/Chip';
 import Pagination from '@mui/material/Pagination';
 import Alert from '@mui/material/Alert';
-import CardActions from '@mui/material/CardActions';
 import CircularProgress from '@mui/material/CircularProgress';
+import Chip from '@mui/material/Chip';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import DoneIcon from '@mui/icons-material/Done';
 import SearchIcon from '@mui/icons-material/Search';
-import { fetchTodos, fetchTodoStats, createTodo, updateTodo, startTodo, completeTodo, cancelTodo, deleteTodo } from '../api/todos.api';
-// Thêm vào phần import MUI
+import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import TodoCard, { type TodoItem } from '../components/todos/TodoCard';
+import {
+  fetchTodos,
+  fetchTodoStats,
+  createTodo,
+  updateTodo,
+  startTodo,
+  completeTodo,
+  cancelTodo,
+  deleteTodo,
+} from '../api/todos.api';
+
 const priorities = ['Low', 'Medium', 'High'] as const;
 
-const statusLabels: Record<string, string> = {
-  todo: 'Todo',
-  in_progress: 'Đang làm',
-  done: 'Hoàn thành',
-  overdue: 'Quá hạn',
-  cancelled: 'Đã hủy',
-};
+type TodoStatus = 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
 
-function getStatusLabel(status: string) {
-  return statusLabels[status] ?? status;
-}
-
-// Priority colors for visual distinction
-const priorityColors = {
-  Low: '#4caf50',    // Green
-  Medium: '#ff9800', // Orange
-  High: '#f44336',   // Red
-} as const;
-
-// Status colors for visual distinction (MUI color variants)
-const statusColorMap: Record<string, 'default' | 'info' | 'success' | 'error' | 'warning'> = {
-  todo: 'default',       // Gray
-  in_progress: 'info',   // Blue
-  done: 'success',       // Green
-  overdue: 'error',      // Red
-  cancelled: 'warning',  // Orange
-};
-
-type TodoItem = {
-  id: number;
-  title: string;
-  description: string | null;
-  dueDate: string | null;
-  priority: string;
-  status: 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
-  cancellationReason?: string | null;
-  tags: Array<{ name: string }>;
-};
+// Board column definitions (Trello-style)
+const columns: Array<{ key: TodoStatus; label: string; color: string }> = [
+  { key: 'todo', label: 'Cần làm', color: '#5e6c84' },
+  { key: 'in_progress', label: 'Đang làm', color: '#0c66e4' },
+  { key: 'done', label: 'Hoàn thành', color: '#22a06b' },
+  { key: 'overdue', label: 'Quá hạn', color: '#c9372c' },
+  { key: 'cancelled', label: 'Đã hủy', color: '#e2780f' },
+];
 
 type TodoForm = {
   title: string;
@@ -90,7 +69,7 @@ const initialForm: TodoForm = {
 export default function TodosPage() {
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled'>('all');
+  const [status, setStatus] = useState<'all' | TodoStatus>('all');
   const [priority, setPriority] = useState('all');
   const [sortBy, setSortBy] = useState('due_date');
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
@@ -102,6 +81,7 @@ export default function TodosPage() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<TodoForm>(initialForm);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [cancelingTodoId, setCancelingTodoId] = useState<number | null>(null);
   const [cancellationReason, setCancellationReason] = useState('');
   const [stats, setStats] = useState({
@@ -160,6 +140,16 @@ export default function TodosPage() {
     setEditingTodo(null);
   };
 
+  const openCreate = () => {
+    resetForm();
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    resetForm();
+  };
+
   const parseTags = (raw: string) =>
     raw
       .split(',')
@@ -195,6 +185,8 @@ export default function TodosPage() {
         setTotal((prev) => prev + 1);
       }
       resetForm();
+      setFormOpen(false);
+      loadStats();
     } catch {
       setError('Không thể lưu todo. Vui lòng thử lại.');
     } finally {
@@ -211,6 +203,7 @@ export default function TodosPage() {
       tags: todo.tags.map((tag) => tag.name).join(', '),
       dueDate: todo.dueDate ? dayjs(todo.dueDate) : dayjs(),
     });
+    setFormOpen(true);
   };
 
   // Starts a todo: transitions from 'todo' to 'in_progress'
@@ -287,48 +280,111 @@ export default function TodosPage() {
     }
   };
 
+  // Group the fetched todos into status columns for the board view
+  const grouped = useMemo(() => {
+    const map: Record<TodoStatus, TodoItem[]> = {
+      todo: [],
+      in_progress: [],
+      done: [],
+      overdue: [],
+      cancelled: [],
+    };
+    todos.forEach((todo) => {
+      if (map[todo.status]) map[todo.status].push(todo);
+    });
+    return map;
+  }, [todos]);
+
+  const visibleColumns = status === 'all' ? columns : columns.filter((c) => c.key === status);
+  const statCount: Record<TodoStatus, number> = {
+    todo: stats.todo,
+    in_progress: stats.in_progress,
+    done: stats.done,
+    overdue: stats.overdue,
+    cancelled: stats.cancelled,
+  };
+
   return (
     <Box sx={{ display: 'grid', gap: 3 }}>
-      <Typography variant="h4">Danh sách Todo</Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography variant="h4">Bảng công việc</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Tổng {total} công việc · Kéo theo trạng thái để theo dõi tiến độ.
+          </Typography>
+        </Box>
+        <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openCreate}>
+          Thêm công việc
+        </Button>
+      </Box>
+
       {error ? <Alert severity="error">{error}</Alert> : null}
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Thêm / Chỉnh sửa Todo
-        </Typography>
-        <Stack spacing={2}>
+
+      {/* Filter toolbar */}
+      <Paper sx={{ p: 2, borderRadius: 2.5 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 1.5,
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: '1fr 1fr',
+              lg: '2fr 1fr 1fr 1fr 1fr',
+            },
+          }}
+        >
           <TextField
-            label="Tiêu đề"
-            value={form.title}
-            onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
             fullWidth
+            placeholder="Tìm kiếm công việc..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            }}
           />
-          <TextField
-            label="Mô tả"
-            value={form.description}
-            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-            fullWidth
-            multiline
-            minRows={3}
-          />
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              label="Ngày đến hạn"
-              value={form.dueDate}
-              onChange={(newValue) => setForm((prev) => ({ ...prev, dueDate: newValue }))}
-              minDate={dayjs()}
-              slotProps={{ textField: { fullWidth: true } }}
-            />
-          </LocalizationProvider>
-          <FormControl fullWidth>
-            <InputLabel id="priority-label">Độ ưu tiên</InputLabel>
+          <FormControl fullWidth size="small">
+            <InputLabel id="status-filter-label">Trạng thái</InputLabel>
             <Select
-              labelId="priority-label"
-              label="Độ ưu tiên"
-              value={form.priority}
-              onChange={(event: SelectChangeEvent<string>) =>
-                setForm((prev) => ({ ...prev, priority: event.target.value }))
-              }
+              labelId="status-filter-label"
+              label="Trạng thái"
+              value={status}
+              onChange={(event: SelectChangeEvent<string>) => {
+                setStatus(event.target.value as 'all' | TodoStatus);
+                setPage(1);
+              }}
             >
+              <MenuItem value="all">Tất cả</MenuItem>
+              <MenuItem value="todo">Cần làm</MenuItem>
+              <MenuItem value="in_progress">Đang làm</MenuItem>
+              <MenuItem value="done">Hoàn thành</MenuItem>
+              <MenuItem value="overdue">Quá hạn</MenuItem>
+              <MenuItem value="cancelled">Đã hủy</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl fullWidth size="small">
+            <InputLabel id="priority-filter-label">Ưu tiên</InputLabel>
+            <Select
+              labelId="priority-filter-label"
+              label="Ưu tiên"
+              value={priority}
+              onChange={(event: SelectChangeEvent<string>) => {
+                setPriority(event.target.value);
+                setPage(1);
+              }}
+            >
+              <MenuItem value="all">Tất cả</MenuItem>
               {priorities.map((priorityOption) => (
                 <MenuItem key={priorityOption} value={priorityOption}>
                   {priorityOption}
@@ -336,82 +392,186 @@ export default function TodosPage() {
               ))}
             </Select>
           </FormControl>
-          <TextField
-            label="Thẻ (phân tách bằng dấu phẩy)"
-            value={form.tags}
-            onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
-            fullWidth
-          />
-          <Stack direction="row" spacing={1} justifyContent="flex-end">
-            {editingTodo ? <Button onClick={resetForm}>Hủy</Button> : null}
-            <Button
-              variant="contained"
-              onClick={handleSave}
-              disabled={submitting}
-              startIcon={submitting ? <CircularProgress size={18} /> : undefined}
+          <FormControl fullWidth size="small">
+            <InputLabel id="sort-label">Sắp xếp</InputLabel>
+            <Select
+              labelId="sort-label"
+              label="Sắp xếp"
+              value={sortBy}
+              onChange={(event: SelectChangeEvent<string>) => setSortBy(event.target.value)}
             >
-              {editingTodo ? 'Cập nhật' : 'Tạo mới'}
-            </Button>
-          </Stack>
-        </Stack>
+              <MenuItem value="due_date">Ngày đến hạn</MenuItem>
+              <MenuItem value="priority">Ưu tiên</MenuItem>
+              <MenuItem value="created_at">Mới nhất</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl fullWidth size="small">
+            <InputLabel id="order-label">Thứ tự</InputLabel>
+            <Select
+              labelId="order-label"
+              label="Thứ tự"
+              value={order}
+              onChange={(event: SelectChangeEvent<'asc' | 'desc'>) =>
+                setOrder(event.target.value as 'asc' | 'desc')
+              }
+            >
+              <MenuItem value="asc">Tăng dần</MenuItem>
+              <MenuItem value="desc">Giảm dần</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
       </Paper>
 
-      <Box sx={{ display: 'grid', gap: 3 }}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Bộ lọc Todo
-          </Typography>
-          <Box
-            sx={{
-              display: 'grid',
-              gap: 2,
-              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-            }}
-          >
+      {/* Board */}
+      {loading ? (
+        <Box sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            overflowX: 'auto',
+            pb: 1,
+            alignItems: 'flex-start',
+          }}
+        >
+          {visibleColumns.map((col) => {
+            const items = grouped[col.key];
+            return (
+              <Box
+                key={col.key}
+                sx={{
+                  flex: status === 'all' ? '0 0 300px' : '1 1 100%',
+                  minWidth: status === 'all' ? 300 : undefined,
+                  maxWidth: status === 'all' ? 320 : undefined,
+                  bgcolor: '#ebecf0',
+                  borderRadius: 2.5,
+                  p: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  maxHeight: 'calc(100vh - 320px)',
+                }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    px: 1,
+                    py: 1,
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: col.color }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {col.label}
+                    </Typography>
+                  </Stack>
+                  <Chip
+                    label={statCount[col.key]}
+                    size="small"
+                    sx={{ bgcolor: 'rgba(9,30,66,0.08)', color: 'text.secondary', fontWeight: 700 }}
+                  />
+                </Box>
+
+                <Stack
+                  spacing={1}
+                  sx={{
+                    overflowY: 'auto',
+                    px: 0.5,
+                    pb: 0.5,
+                    flex: 1,
+                  }}
+                >
+                  {items.length === 0 ? (
+                    <Box
+                      sx={{
+                        py: 3,
+                        textAlign: 'center',
+                        color: 'text.disabled',
+                        border: '2px dashed #dfe1e6',
+                        borderRadius: 2,
+                        m: 0.5,
+                      }}
+                    >
+                      <Typography variant="caption">Không có công việc</Typography>
+                    </Box>
+                  ) : (
+                    items.map((todo) => (
+                      <TodoCard
+                        key={todo.id}
+                        todo={todo}
+                        onEdit={handleEdit}
+                        onStart={handleStart}
+                        onComplete={handleComplete}
+                        onCancel={handleCancelClick}
+                        onDelete={handleDelete}
+                      />
+                    ))
+                  )}
+                </Stack>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          Trang {page} · Hiển thị {todos.length} / {total} công việc
+        </Typography>
+        <Pagination
+          count={Math.max(Math.ceil(total / limit), 1)}
+          page={page}
+          onChange={(_, value) => setPage(value)}
+          color="primary"
+          shape="rounded"
+        />
+      </Box>
+
+      {/* Create / Edit dialog */}
+      <Dialog open={formOpen} onClose={closeForm} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {editingTodo ? 'Chỉnh sửa công việc' : 'Thêm công việc mới'}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2.5} sx={{ pt: 1 }}>
             <TextField
+              label="Tiêu đề"
+              value={form.title}
+              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
               fullWidth
-              label="Tìm kiếm"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: 'text.disabled' }} />
-                  </InputAdornment>
-                ),
-              }}
+              autoFocus
             />
-            <FormControl fullWidth>
-              <InputLabel id="status-filter-label">Trạng thái</InputLabel>
+            <TextField
+              label="Mô tả"
+              value={form.description}
+              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+              fullWidth
+              multiline
+              minRows={3}
+            />
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Ngày đến hạn"
+                value={form.dueDate}
+                onChange={(newValue) => setForm((prev) => ({ ...prev, dueDate: newValue }))}
+                minDate={dayjs()}
+                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+              />
+            </LocalizationProvider>
+            <FormControl fullWidth size="small">
+              <InputLabel id="priority-label">Độ ưu tiên</InputLabel>
               <Select
-                labelId="status-filter-label"
-                label="Trạng thái"
-                value={status}
-                onChange={(event: SelectChangeEvent<string>) => {
-                  setStatus(event.target.value as 'all' | 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled');
-                  setPage(1);
-                }}
+                labelId="priority-label"
+                label="Độ ưu tiên"
+                value={form.priority}
+                onChange={(event: SelectChangeEvent<string>) =>
+                  setForm((prev) => ({ ...prev, priority: event.target.value }))
+                }
               >
-                <MenuItem value="all">Tất cả</MenuItem>
-                <MenuItem value="todo">Todo</MenuItem>
-                <MenuItem value="in_progress">Đang làm</MenuItem>
-                <MenuItem value="done">Hoàn thành</MenuItem>
-                <MenuItem value="overdue">Quá hạn</MenuItem>
-                <MenuItem value="cancelled">Đã hủy</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel id="priority-filter-label">Ưu tiên</InputLabel>
-              <Select
-                labelId="priority-filter-label"
-                label="Ưu tiên"
-                value={priority}
-                onChange={(event: SelectChangeEvent<string>) => {
-                  setPriority(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="all">Tất cả</MenuItem>
                 {priorities.map((priorityOption) => (
                   <MenuItem key={priorityOption} value={priorityOption}>
                     {priorityOption}
@@ -419,211 +579,62 @@ export default function TodosPage() {
                 ))}
               </Select>
             </FormControl>
-            <FormControl fullWidth>
-              <InputLabel id="sort-label">Sắp xếp</InputLabel>
-              <Select
-                labelId="sort-label"
-                label="Sắp xếp"
-                value={sortBy}
-                onChange={(event: SelectChangeEvent<string>) => setSortBy(event.target.value)}
-              >
-                <MenuItem value="due_date">Ngày đến hạn</MenuItem>
-                <MenuItem value="priority">Ưu tiên</MenuItem>
-                <MenuItem value="created_at">Mới nhất</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel id="order-label">Thứ tự</InputLabel>
-              <Select
-                labelId="order-label"
-                label="Thứ tự"
-                value={order}
-                onChange={(event: SelectChangeEvent<'asc' | 'desc'>) =>
-                  setOrder(event.target.value as 'asc' | 'desc')
-                }
-              >
-                <MenuItem value="asc">Tăng dần</MenuItem>
-                <MenuItem value="desc">Giảm dần</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </Paper>
-
-        <Paper>
-          {loading ? (
-            <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
-              <CircularProgress />
-            </Box>
-          ) : todos.length === 0 ? (
-            <Box sx={{ py: 8, textAlign: 'center' }}>
-              <Typography variant="h6" gutterBottom>
-                Không có todo nào.
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Bắt đầu tạo todo mới để quản lý công việc của bạn.
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-              {todos.map((todo) => (
-                <Paper key={todo.id} sx={{ p: 2, borderRadius: 2, boxShadow: 1 }}>
-                  <Stack spacing={1}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                      <Stack>
-                        <Typography variant="h6" fontWeight={700}>
-                          {todo.title}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box
-                            sx={{
-                              width: 12,
-                              height: 12,
-                              borderRadius: '50%',
-                              backgroundColor: priorityColors[todo.priority as keyof typeof priorityColors],
-                              opacity: 0.8
-                            }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            {todo.priority} • {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt ngày'}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                      <Chip
-                        label={getStatusLabel(todo.status)}
-                        color={statusColorMap[todo.status] ?? 'default'}
-                        size="small"
-                      />
-                    </Stack>
-
-                    {todo.description ? (
-                      <Typography variant="body2" color="text.secondary">
-                        {todo.description}
-                      </Typography>
-                    ) : null}
-
-                    {todo.cancellationReason && todo.status === 'cancelled' ? (
-                      <Typography variant="caption" color="error" sx={{ fontStyle: 'italic' }}>
-                        Đã hủy: {todo.cancellationReason}
-                      </Typography>
-                    ) : null}
-
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                      {todo.tags.map((tag) => (
-                        <Chip key={tag.name} label={tag.name} size="small" />
-                      ))}
-                    </Stack>
-
-                    <CardActions sx={{ justifyContent: 'flex-end', px: 0, py: 1 }}>
-                      {/* Show action buttons based on current status */}
-                      {/* For overdue, done, and cancelled: only show delete button */}
-                      {['overdue', 'done', 'cancelled'].includes(todo.status) ? (
-                        <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
-                          Xóa
-                        </Button>
-                      ) : (
-                        <>
-                          <Button size="small" onClick={() => handleEdit(todo)} startIcon={<EditIcon />}>
-                            Sửa
-                          </Button>
-                          {todo.status === 'todo' && (
-                            <>
-                              <Button type="button" size="small" onClick={() => handleStart(todo)}>
-                                Bắt đầu
-                              </Button>
-                              <Button type="button" size="small" variant="outlined" onClick={() => handleComplete(todo)} startIcon={<DoneIcon />}>
-                                Hoàn thành
-                              </Button>
-                              <Button type="button" size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
-                                Hủy
-                              </Button>
-                            </>
-                          )}
-                          {todo.status === 'in_progress' && (
-                            <>
-                              <Button type="button" size="small" variant="outlined" onClick={() => handleComplete(todo)} startIcon={<DoneIcon />}>
-                                Hoàn thành
-                              </Button>
-                              <Button type="button" size="small" color="warning" onClick={() => handleCancelClick(todo.id)}>
-                                Hủy
-                              </Button>
-                            </>
-                          )}
-                          <Button size="small" color="error" onClick={() => handleDelete(todo.id)} startIcon={<DeleteIcon />}>
-                            Xóa
-                          </Button>
-                        </>
-                      )}
-                    </CardActions>
-                  </Stack>
-                </Paper>
-              ))}
-            </Box>
-          )}
-        </Paper>
-
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-          <Typography variant="body2">Tổng: {total} todo</Typography>
-          <Pagination
-            count={Math.ceil(total / limit)}
-            page={page}
-            onChange={(_, value) => setPage(value)}
-            color="primary"
-            shape="rounded"
-          />
-        </Box>
-
-        <Paper sx={{ p: 2, mt: 2 }}>
-          <Typography variant="subtitle1">Tóm tắt (5 trạng thái)</Typography>
-          <Typography variant="body2">Todo: {stats.todo}</Typography>
-          <Typography variant="body2">Đang làm: {stats.in_progress}</Typography>
-          <Typography variant="body2">Hoàn thành: {stats.done}</Typography>
-          <Typography variant="body2">Quá hạn: {stats.overdue}</Typography>
-          <Typography variant="body2">Đã hủy: {stats.cancelled}</Typography>
-        </Paper>
-
-        {/* Cancel Modal */}
-        {/* ✅ Cancel Dialog - overlay thực sự */}
-        <Dialog
-          open={cancelingTodoId !== null}
-          onClose={handleCancelCancel}
-          fullWidth
-          maxWidth="sm"
-        >
-          <DialogTitle>Hủy Todo</DialogTitle>
-          <DialogContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Nhập lý do hủy (tối thiểu 10 ký tự):
-            </Typography>
             <TextField
+              label="Thẻ (phân tách bằng dấu phẩy)"
+              value={form.tags}
+              onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
               fullWidth
-              multiline
-              minRows={3}
-              placeholder="Lý do hủy..."
-              value={cancellationReason}
-              onChange={(e) => setCancellationReason(e.target.value)}
-              error={cancellationReason.length > 0 && cancellationReason.length < 10}
-              helperText={
-                cancellationReason.length > 0 && cancellationReason.length < 10
-                  ? `Cần ${10 - cancellationReason.length} ký tự nữa`
-                  : ''
-              }
-              autoFocus
             />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCancelCancel}>Hủy bỏ</Button>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={handleCancelConfirm}
-              disabled={cancellationReason.trim().length < 10}
-            >
-              Xác nhận hủy
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={closeForm}>Hủy</Button>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
+          >
+            {editingTodo ? 'Cập nhật' : 'Tạo mới'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
+      {/* Cancel dialog */}
+      <Dialog open={cancelingTodoId !== null} onClose={handleCancelCancel} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 700 }}>Hủy công việc</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, mt: 1 }}>
+            Nhập lý do hủy (tối thiểu 10 ký tự):
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            minRows={3}
+            placeholder="Lý do hủy..."
+            value={cancellationReason}
+            onChange={(e) => setCancellationReason(e.target.value)}
+            error={cancellationReason.length > 0 && cancellationReason.length < 10}
+            helperText={
+              cancellationReason.length > 0 && cancellationReason.length < 10
+                ? `Cần ${10 - cancellationReason.length} ký tự nữa`
+                : ''
+            }
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={handleCancelCancel}>Hủy bỏ</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleCancelConfirm}
+            disabled={cancellationReason.trim().length < 10}
+          >
+            Xác nhận hủy
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

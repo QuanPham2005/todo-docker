@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -11,7 +9,13 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import Alert from '@mui/material/Alert';
+import Link from '@mui/material/Link';
+import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import AuthLayout from '../components/layout/AuthLayout';
 import { useAuthStore } from '../store/authStore';
 import { login } from '../api/auth.api';
 
@@ -19,6 +23,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [popupMessage, setPopupMessage] = useState<string | null>(null);
   const [popupOpen, setPopupOpen] = useState(false);
   const setSession = useAuthStore((state) => state.setSession);
@@ -34,6 +39,7 @@ export default function LoginPage() {
     setError(null);
     setPopupOpen(false);
     setPopupMessage(null);
+    setSubmitting(true);
 
     try {
       const data = await login({ email, password });
@@ -74,11 +80,13 @@ export default function LoginPage() {
       } else {
         setError(message);
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <Container component="main" maxWidth="xs" sx={{ mt: 8, bgcolor: 'white', p: 4, borderRadius: 2, boxShadow: 3 }}>
+    <AuthLayout title="Đăng nhập" subtitle="Chào mừng trở lại! Vui lòng nhập thông tin của bạn.">
       <Dialog open={popupOpen} onClose={handlePopupClose}>
         <DialogTitle>Thông báo</DialogTitle>
         <DialogContent>
@@ -88,45 +96,57 @@ export default function LoginPage() {
           <Button onClick={handlePopupClose}>Đóng</Button>
         </DialogActions>
       </Dialog>
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
-          <LockOutlinedIcon />
-        </Avatar>
-        <Typography component="h1" variant="h5">
+
+      <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {error ? <Alert severity="error">{error}</Alert> : null}
+        <TextField
+          required
+          fullWidth
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <EmailOutlinedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          required
+          fullWidth
+          label="Mật khẩu"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockOutlinedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          size="large"
+          disabled={submitting}
+          startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
+          sx={{ mt: 1, py: 1.2 }}
+        >
           Đăng nhập
+        </Button>
+        <Typography variant="body2" color="text.secondary" align="center">
+          Chưa có tài khoản?{' '}
+          <Link component={RouterLink} to="/register" sx={{ fontWeight: 600 }}>
+            Đăng ký ngay
+          </Link>
         </Typography>
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3, width: '100%' }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            label="Mật khẩu"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {error ? (
-            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
-              {error}
-            </Typography>
-          ) : null}
-          <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
-            Đăng nhập
-          </Button>
-          <Button component={RouterLink} to="/register" fullWidth>
-            Chưa có tài khoản? Đăng ký
-          </Button>
-        </Box>
       </Box>
-    </Container>
+    </AuthLayout>
   );
 }
