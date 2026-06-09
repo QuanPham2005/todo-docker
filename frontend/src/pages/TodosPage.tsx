@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
+import type { DragEvent } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -56,6 +57,14 @@ const columns: Array<{ key: TodoStatus; label: string; color: string }> = [
   { key: 'cancelled', label: 'Đã hủy', color: '#e2780f' },
 ];
 
+const DRAG_TARGETS: Record<TodoStatus, TodoStatus[]> = {
+  todo: ['in_progress', 'done', 'cancelled'],
+  in_progress: ['done', 'cancelled'],
+  done: [],
+  overdue: ['todo', 'cancelled'],
+  cancelled: [],
+};
+
 type TodoForm = {
   title: string;
   description: string;
@@ -90,6 +99,9 @@ export default function TodosPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [cancelingTodoId, setCancelingTodoId] = useState<number | null>(null);
   const [cancellationReason, setCancellationReason] = useState('');
+  const [draggingTodoId, setDraggingTodoId] = useState<number | null>(null);
+  const [dropTargetStatus, setDropTargetStatus] = useState<TodoStatus | null>(null);
+  const [restoreTodoId, setRestoreTodoId] = useState<number | null>(null);
   const [stats, setStats] = useState({
     todo: 0,
     in_progress: 0,
@@ -144,6 +156,7 @@ export default function TodosPage() {
   const resetForm = () => {
     setForm(initialForm);
     setEditingTodo(null);
+    setRestoreTodoId(null);
   };
 
   const openCreate = () => {
@@ -165,6 +178,11 @@ export default function TodosPage() {
   const handleSave = async () => {
     if (!form.title.trim()) {
       setError('Tiêu đề là bắt buộc.');
+      return;
+    }
+
+    if (restoreTodoId && !form.dueDate) {
+      setError('Vui lòng chọn ngày đến hạn mới để đưa todo về Cần làm.');
       return;
     }
 
@@ -202,6 +220,7 @@ export default function TodosPage() {
 
   const handleEdit = (todo: TodoItem) => {
     setEditingTodo(todo);
+    setRestoreTodoId(null);
     setForm({
       title: todo.title,
       description: todo.description ?? '',
@@ -264,6 +283,7 @@ export default function TodosPage() {
       loadTodos();
       setCancelingTodoId(null);
       setCancellationReason('');
+      clearDragState();
     } catch (error) {
       setError('Không thể hủy todo. Vui lòng thử lại.');
     }
@@ -272,6 +292,20 @@ export default function TodosPage() {
   const handleCancelCancel = () => {
     setCancelingTodoId(null);
     setCancellationReason('');
+    clearDragState();
+  };
+
+  const handleRestoreOverdueTodo = (todo: TodoItem) => {
+    setEditingTodo(todo);
+    setRestoreTodoId(todo.id);
+    setForm({
+      title: todo.title,
+      description: todo.description ?? '',
+      priority: todo.priority,
+      tags: todo.tags.map((tag) => tag.name).join(', '),
+      dueDate: dayjs().add(1, 'day'),
+    });
+    setFormOpen(true);
   };
 
   const handleDelete = async (todoId: number) => {
@@ -309,6 +343,61 @@ export default function TodosPage() {
     overdue: stats.overdue,
     cancelled: stats.cancelled,
   };
+  const draggingTodo = draggingTodoId ? todos.find((todo) => todo.id === draggingTodoId) ?? null : null;
+
+  const canDropHere = (targetStatus: TodoStatus) =>
+    draggingTodo ? DRAG_TARGETS[draggingTodo.status].includes(targetStatus) : false;
+
+  const clearDragState = () => {
+    setDraggingTodoId(null);
+    setDropTargetStatus(null);
+  };
+
+  const handleCardDragStart = (event: DragEvent<HTMLDivElement>, todo: TodoItem) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(todo.id));
+    setDraggingTodoId(todo.id);
+    setDropTargetStatus(null);
+  };
+
+  const handleCardDragEnd = () => {
+    clearDragState();
+  };
+
+  const handleDropToStatus = async (targetStatus: TodoStatus) => {
+    if (!draggingTodo) return;
+
+    if (!canDropHere(targetStatus) || draggingTodo.status === targetStatus) {
+      clearDragState();
+      return;
+    }
+
+    setError(null);
+    try {
+      if (draggingTodo.status === 'overdue' && targetStatus === 'todo') {
+        handleRestoreOverdueTodo(draggingTodo);
+        clearDragState();
+        return;
+      }
+
+      if (targetStatus === 'in_progress') {
+        await startTodo(draggingTodo.id);
+      } else if (targetStatus === 'done') {
+        await completeTodo(draggingTodo.id);
+      } else if (targetStatus === 'cancelled') {
+        setCancelingTodoId(draggingTodo.id);
+        setCancellationReason('');
+        clearDragState();
+        return;
+      }
+
+      loadTodos();
+    } catch {
+      setError('Không thể đổi trạng thái công việc. Vui lòng thử lại.');
+    } finally {
+      clearDragState();
+    }
+  };
 
   return (
     <Box sx={{ display: 'grid', gap: 3 }}>
@@ -325,6 +414,9 @@ export default function TodosPage() {
           <Typography variant="h4">Bảng công việc</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Tổng {total} công việc · Kéo theo trạng thái để theo dõi tiến độ.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Kéo task sang cột phù hợp để đổi trạng thái. Thả vào cột Đã hủy sẽ mở ô nhập lý do.
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openCreate}>
@@ -448,11 +540,21 @@ export default function TodosPage() {
             return (
               <Box
                 key={col.key}
+                onDragOver={(event) => {
+                  if (!canDropHere(col.key)) return;
+                  event.preventDefault();
+                  setDropTargetStatus(col.key);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  void handleDropToStatus(col.key);
+                }}
                 sx={{
                   flex: status === 'all' ? '0 0 300px' : '1 1 100%',
                   minWidth: status === 'all' ? 300 : undefined,
                   maxWidth: status === 'all' ? 320 : undefined,
-                  bgcolor: '#ebecf0',
+                  bgcolor: dropTargetStatus === col.key ? '#e9f2ff' : '#ebecf0',
+                  border: dropTargetStatus === col.key ? '1px solid #0c66e4' : '1px solid transparent',
                   borderRadius: 2.5,
                   p: 1,
                   display: 'flex',
@@ -509,11 +611,15 @@ export default function TodosPage() {
                       <TodoCard
                         key={todo.id}
                         todo={todo}
+                        draggable={DRAG_TARGETS[todo.status].length > 0}
+                        isDragging={draggingTodoId === todo.id}
                         onEdit={handleEdit}
                         onStart={handleStart}
                         onComplete={handleComplete}
                         onCancel={handleCancelClick}
                         onDelete={handleDelete}
+                        onDragStart={handleCardDragStart}
+                        onDragEnd={handleCardDragEnd}
                       />
                     ))
                   )}
@@ -540,10 +646,15 @@ export default function TodosPage() {
       {/* Create / Edit dialog */}
       <Dialog open={formOpen} onClose={closeForm} fullWidth maxWidth="sm">
         <DialogTitle sx={{ fontWeight: 700 }}>
-          {editingTodo ? 'Chỉnh sửa công việc' : 'Thêm công việc mới'}
+          {restoreTodoId ? 'Đổi hạn để trả về Cần làm' : editingTodo ? 'Chỉnh sửa công việc' : 'Thêm công việc mới'}
         </DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
+            {restoreTodoId ? (
+              <Alert severity="info">
+                Todo đang ở trạng thái quá hạn. Hãy đổi sang ngày đến hạn mới để đưa nó về cột Cần làm.
+              </Alert>
+            ) : null}
             <TextField
               label="Tiêu đề"
               value={form.title}
@@ -601,7 +712,7 @@ export default function TodosPage() {
             disabled={submitting}
             startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
           >
-            {editingTodo ? 'Cập nhật' : 'Tạo mới'}
+            {restoreTodoId ? 'Đổi hạn & trả về' : editingTodo ? 'Cập nhật' : 'Tạo mới'}
           </Button>
         </DialogActions>
       </Dialog>

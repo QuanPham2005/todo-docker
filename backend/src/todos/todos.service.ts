@@ -259,6 +259,7 @@ export class TodosService {
    */
   async update(id: number, user: User, dto: UpdateTodoDto) {
     const todo = await this.findOneForUser(id, user);
+    const previousStatus = todo.status;
 
     if (dto.title !== undefined) {
       todo.title = dto.title;
@@ -271,6 +272,15 @@ export class TodosService {
     }
     if (dto.priority !== undefined) {
       todo.priority = dto.priority;
+    }
+
+    const shouldRestoreOverdueToTodo =
+      previousStatus === TODO_STATUS.OVERDUE &&
+      dto.dueDate !== undefined &&
+      dto.dueDate !== null;
+
+    if (shouldRestoreOverdueToTodo) {
+      todo.status = TODO_STATUS.TODO;
     }
 
     if (dto.tags !== undefined) {

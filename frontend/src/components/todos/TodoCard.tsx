@@ -6,6 +6,7 @@ import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
+import type { DragEvent } from 'react';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DoneIcon from '@mui/icons-material/Done';
@@ -43,19 +44,45 @@ type Props = {
   onComplete: (todo: TodoItem) => void;
   onCancel: (id: number) => void;
   onDelete: (id: number) => void;
+  draggable?: boolean;
+  isDragging?: boolean;
+  onDragStart?: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+  onDragEnd?: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
 };
 
-export default function TodoCard({ todo, onEdit, onStart, onComplete, onCancel, onDelete }: Props) {
+export default function TodoCard({
+  todo,
+  onEdit,
+  onStart,
+  onComplete,
+  onCancel,
+  onDelete,
+  draggable = true,
+  isDragging = false,
+  onDragStart,
+  onDragEnd,
+}: Props) {
   const prio = priorityConfig[todo.priority] ?? priorityConfig.Low;
   const isClosed = ['overdue', 'done', 'cancelled'].includes(todo.status);
 
   return (
     <Paper
+      draggable={draggable}
+      onDragStart={(event) => {
+        if (!draggable) return;
+        onDragStart?.(event, todo);
+      }}
+      onDragEnd={(event) => {
+        onDragEnd?.(event, todo);
+      }}
       sx={{
         p: 1.75,
         borderRadius: 2,
         boxShadow: '0 1px 1px rgba(9,30,66,0.12)',
         transition: 'box-shadow 0.15s ease, transform 0.15s ease',
+        cursor: draggable ? 'grab' : 'default',
+        userSelect: 'none',
+        opacity: isDragging ? 0.65 : 1,
         '&:hover': {
           boxShadow: '0 4px 12px rgba(9,30,66,0.18)',
           transform: 'translateY(-1px)',
@@ -63,6 +90,13 @@ export default function TodoCard({ todo, onEdit, onStart, onComplete, onCancel, 
       }}
     >
       <Stack spacing={1}>
+        <Typography
+          variant="caption"
+          sx={{ fontWeight: 700, letterSpacing: '0.04em', color: 'text.secondary' }}
+        >
+          #{todo.id}
+        </Typography>
+
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
             {todo.title}
