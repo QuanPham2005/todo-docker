@@ -1,6 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
-import AdminDashboard from '../pages/admin/AdminDashboard';
+import AdminLayout from '../components/layout/AdminLayout';
+import AdminOverview from '../pages/admin/AdminOverview';
+import AdminUsers from '../pages/admin/AdminUsers';
+import AdminTodos from '../pages/admin/AdminTodos';
+import AdminStats from '../pages/admin/AdminStats';
 import DashboardPage from '../pages/DashboardPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
@@ -24,15 +28,24 @@ export default function AppRouter() {
       >
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="todos" element={<TodosPage />} />
-        <Route
-          path="admin"
-          element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          }
-        />
       </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminLayout />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminOverview />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="todos" element={<AdminTodos />} />
+        <Route path="stats" element={<AdminStats />} />
+      </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
