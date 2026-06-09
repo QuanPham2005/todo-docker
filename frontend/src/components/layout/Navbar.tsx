@@ -43,9 +43,13 @@ export default function Navbar() {
   return (
     <AppBar
       position="sticky"
+      elevation={0}        // ← bỏ shadow mặc định
       sx={{
         background: 'linear-gradient(90deg, #0c66e4 0%, #0747a6 100%)',
         color: '#fff',
+        borderBottom: 'none',   // ← đảm bảo không có border
+        margin: 0,
+        padding: 0,
       }}
     >
       <Toolbar sx={{ gap: 1, minHeight: { xs: 60, sm: 64 } }}>

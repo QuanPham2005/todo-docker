@@ -412,12 +412,7 @@ export default function TodosPage() {
       >
         <Box>
           <Typography variant="h4">Bảng công việc</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Tổng {total} công việc · Kéo theo trạng thái để theo dõi tiến độ.
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Kéo task sang cột phù hợp để đổi trạng thái. Thả vào cột Đã hủy sẽ mở ô nhập lý do.
-          </Typography>
+          
         </Box>
         <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={openCreate}>
           Thêm công việc

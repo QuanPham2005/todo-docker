@@ -51,7 +51,6 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          borderBottom: '1px solid rgba(255,255,255,0.12)',
         },
       },
     },
@@ -60,7 +59,6 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          border: '1px solid #dfe1e6',
         },
         outlined: {
           borderColor: '#dfe1e6',
