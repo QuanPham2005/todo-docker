@@ -30,6 +30,12 @@ const priorityConfig: Record<string, { color: string; bg: string }> = {
   High: { color: '#c9372c', bg: '#ffeceb' },
 };
 
+const priorityLabelMap: Record<string, string> = {
+  Low: 'Thấp',
+  Medium: 'Trung bình',
+  High: 'Cao',
+};
+
 type Props = {
   todo: TodoItem;
   onEdit: (todo: TodoItem) => void;
@@ -62,7 +68,7 @@ export default function TodoCard({ todo, onEdit, onStart, onComplete, onCancel, 
             {todo.title}
           </Typography>
           <Chip
-            label={todo.priority}
+            label={priorityLabelMap[todo.priority] ?? todo.priority}
             size="small"
             sx={{ bgcolor: prio.bg, color: prio.color, flexShrink: 0 }}
           />
@@ -138,16 +144,18 @@ export default function TodoCard({ todo, onEdit, onStart, onComplete, onCancel, 
                   </IconButton>
                 </Tooltip>
               ) : null}
-              <Button
-                size="small"
-                variant="outlined"
-                color="success"
-                startIcon={<DoneIcon />}
-                onClick={() => onComplete(todo)}
-                sx={{ px: 1 }}
-              >
-                Xong
-              </Button>
+              {todo.status === 'in_progress' ? (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                  startIcon={<DoneIcon />}
+                  onClick={() => onComplete(todo)}
+                  sx={{ px: 1 }}
+                >
+                  Xong
+                </Button>
+              ) : null}
               <Tooltip title="Hủy">
                 <IconButton size="small" color="warning" onClick={() => onCancel(todo.id)}>
                   <CloseRoundedIcon fontSize="small" />

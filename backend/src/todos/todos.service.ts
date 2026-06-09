@@ -37,7 +37,8 @@ const VALID_TRANSITIONS: Record<TodoStatus, TodoStatus[]> = {
 const MIN_CANCELLATION_REASON_LENGTH = 10;
 
 // Statuses that can automatically transition to 'overdue' (cron job only)
-const STATUSES_THAT_CAN_EXPIRE: TodoStatus[] = [TODO_STATUS.IN_PROGRESS];
+// A todo is overdue if it is still todo or in_progress after its due date.
+const STATUSES_THAT_CAN_EXPIRE: TodoStatus[] = [TODO_STATUS.TODO, TODO_STATUS.IN_PROGRESS];
 
 // Helper: Check if transition is valid
 function isValidTransition(from: TodoStatus, to: TodoStatus): boolean {

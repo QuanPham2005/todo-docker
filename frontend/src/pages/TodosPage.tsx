@@ -39,6 +39,12 @@ import {
 
 const priorities = ['Low', 'Medium', 'High'] as const;
 
+const priorityLabels: Record<string, string> = {
+  Low: 'Thấp',
+  Medium: 'Trung bình',
+  High: 'Cao',
+};
+
 type TodoStatus = 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
 
 // Board column definitions (Trello-style)
@@ -63,7 +69,7 @@ const initialForm: TodoForm = {
   description: '',
   priority: 'Low',
   tags: '',
-  dueDate: dayjs(),
+  dueDate: null,
 };
 
 export default function TodosPage() {
@@ -169,7 +175,7 @@ export default function TodosPage() {
       title: form.title.trim(),
       description: form.description.trim() || null,
       priority: form.priority,
-      dueDate: form.dueDate ? form.dueDate.toISOString() : null,
+      dueDate: form.dueDate ? form.dueDate.format('YYYY-MM-DD') : null,
       tags: parseTags(form.tags),
     };
 
@@ -201,7 +207,7 @@ export default function TodosPage() {
       description: todo.description ?? '',
       priority: todo.priority,
       tags: todo.tags.map((tag) => tag.name).join(', '),
-      dueDate: todo.dueDate ? dayjs(todo.dueDate) : dayjs(),
+      dueDate: todo.dueDate ? dayjs(todo.dueDate) : null,
     });
     setFormOpen(true);
   };
@@ -387,7 +393,7 @@ export default function TodosPage() {
               <MenuItem value="all">Tất cả</MenuItem>
               {priorities.map((priorityOption) => (
                 <MenuItem key={priorityOption} value={priorityOption}>
-                  {priorityOption}
+                  {priorityLabels[priorityOption] ?? priorityOption}
                 </MenuItem>
               ))}
             </Select>
@@ -574,7 +580,7 @@ export default function TodosPage() {
               >
                 {priorities.map((priorityOption) => (
                   <MenuItem key={priorityOption} value={priorityOption}>
-                    {priorityOption}
+                    {priorityLabels[priorityOption] ?? priorityOption}
                   </MenuItem>
                 ))}
               </Select>

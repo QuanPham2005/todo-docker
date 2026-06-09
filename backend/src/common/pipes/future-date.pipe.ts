@@ -16,23 +16,45 @@ export class FutureDatePipe implements PipeTransform {
       return value;
     }
 
-    const date = new Date(dueDate);
-    if (Number.isNaN(date.getTime())) {
+    const parsedDate = this.parseCalendarDate(dueDate);
+    if (!parsedDate) {
       throw new BadRequestException('dueDate không hợp lệ');
     }
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
+    const todayKey = this.toDateKey(today);
+    const checkDateKey = this.toDateKey(parsedDate);
 
-    if (checkDate < today) {
+    if (checkDateKey < todayKey) {
       throw new BadRequestException('dueDate phải là hôm nay hoặc tương lai');
     }
 
     return {
       ...value,
-      dueDate: date,
+      dueDate: parsedDate,
     };
+  }
+
+  private parseCalendarDate(input: unknown): Date | null {
+    if (typeof input !== 'string' || !input.trim()) {
+      return null;
+    }
+
+    const trimmed = input.trim();
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+    if (dateOnlyMatch) {
+      const year = Number(dateOnlyMatch[1]);
+      const month = Number(dateOnlyMatch[2]);
+      const day = Number(dateOnlyMatch[3]);
+      const date = new Date(year, month - 1, day);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    const date = new Date(trimmed);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  private toDateKey(date: Date): number {
+    return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
   }
 }

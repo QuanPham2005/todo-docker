@@ -90,9 +90,12 @@ export class AdminService {
     }
 
     if (query.search) {
-      qb.andWhere('todo.title ILIKE :search', {
-        search: `%${query.search}%`,
-      });
+      qb.andWhere(
+        '(todo.title ILIKE :search OR user.email ILIKE :search)',
+        {
+          search: `%${query.search}%`,
+        },
+      );
     }
 
     const sortColumn =

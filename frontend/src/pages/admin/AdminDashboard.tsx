@@ -38,6 +38,25 @@ const todoStatusOptions = [
   { value: 'cancelled', label: 'Đã hủy' },
 ];
 
+const todoPriorityOptions = [
+  { value: 'all', label: 'Tất cả' },
+  { value: 'Low', label: 'Thấp' },
+  { value: 'Medium', label: 'Trung bình' },
+  { value: 'High', label: 'Cao' },
+];
+
+const todoPriorityLabelMap: Record<string, string> = {
+  Low: 'Thấp',
+  Medium: 'Trung bình',
+  High: 'Cao',
+};
+
+const todoPriorityColorMap: Record<string, 'default' | 'success' | 'warning' | 'error'> = {
+  Low: 'success',
+  Medium: 'warning',
+  High: 'error',
+};
+
 const todoSortOptions = [
   { value: 'due_date', label: 'Ngày đến hạn' },
   { value: 'priority', label: 'Ưu tiên' },
@@ -374,7 +393,7 @@ export default function AdminDashboard() {
         <Paper sx={{ p: 3, mb: 3 }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
             <TextField
-              label="Tìm kiếm todo"
+              label="Tìm kiếm todo hoặc người dùng"
               value={todoSearch}
               onChange={(event) => {
                 setTodoSearch(event.target.value);
@@ -411,10 +430,11 @@ export default function AdminDashboard() {
                   setTodoPage(1);
                 }}
               >
-                <MenuItem value="all">Tất cả</MenuItem>
-                <MenuItem value="Low">Low</MenuItem>
-                <MenuItem value="Medium">Medium</MenuItem>
-                <MenuItem value="High">High</MenuItem>
+                {todoPriorityOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
             <FormControl sx={{ minWidth: 140 }}>
@@ -479,7 +499,13 @@ export default function AdminDashboard() {
                     <TableRow key={todo.id} hover>
                       <TableCell>{todo.title}</TableCell>
                       <TableCell>{todo.user.email}</TableCell>
-                      <TableCell>{todo.priority}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={todoPriorityLabelMap[todo.priority] ?? todo.priority}
+                          color={todoPriorityColorMap[todo.priority] ?? 'default'}
+                          size="small"
+                        />
+                      </TableCell>
                       <TableCell>
                         {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt'}
                       </TableCell>
