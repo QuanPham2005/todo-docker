@@ -18,6 +18,7 @@ CREATE TABLE public.todos (
     description          TEXT,
     due_date             TIMESTAMPTZ,
     priority             TEXT DEFAULT 'Low' NOT NULL,
+    sort_order           INTEGER DEFAULT 0 NOT NULL,
     status               VARCHAR(20) DEFAULT 'todo' NOT NULL,
     cancellation_reason  TEXT,
     created_at           TIMESTAMP DEFAULT now() NOT NULL,
@@ -37,3 +38,4 @@ CREATE TABLE public.tags (
 CREATE INDEX idx_todos_user_id ON public.todos(user_id);
 CREATE INDEX idx_todos_status ON public.todos(status);
 CREATE INDEX idx_todos_due_date ON public.todos(due_date);
+CREATE INDEX idx_todos_sort_order ON public.todos(sort_order);

@@ -35,6 +35,9 @@ export class Todo {
   @Column({ type: 'text', default: 'Low' })
   priority!: string;
 
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+
   // 5-state status system: todo, in_progress, done, overdue, cancelled
   @Column({
     type: 'varchar',

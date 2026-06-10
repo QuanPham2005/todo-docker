@@ -14,6 +14,7 @@ import { TodosService } from './todos.service';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { CancelTodoDto } from './dto/cancel-todo.dto';
+import { ReorderTodoDto } from './dto/reorder-todo.dto';
 import { QueryTodoDto } from './dto/query-todo.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -59,6 +60,15 @@ export class TodosController {
     @Body(new FutureDatePipe()) dto: UpdateTodoDto,
   ) {
     return this.todosService.update(id, user, dto);
+  }
+
+  @Patch(':id/move')
+  async move(
+    @CurrentUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReorderTodoDto,
+  ) {
+    return this.todosService.move(id, user, dto.targetStatus, dto.beforeTodoId);
   }
 
   @Delete(':id')

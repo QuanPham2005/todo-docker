@@ -12,6 +12,10 @@ export async function updateTodo(id: number, body: Record<string, unknown>) {
   return api.patch(`/todos/${id}`, body).then((res) => res.data);
 }
 
+export async function moveTodo(id: number, body: Record<string, unknown>) {
+  return api.patch(`/todos/${id}/move`, body).then((res) => res.data);
+}
+
 // Start a todo: transitions from 'todo' to 'in_progress'
 export async function startTodo(id: number) {
   return api.patch(`/todos/${id}/start`).then((res) => res.data);

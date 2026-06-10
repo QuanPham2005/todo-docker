@@ -51,6 +51,8 @@ function getTransitionErrorMessage(from: TodoStatus, to: TodoStatus): string {
   return `Cannot transition from '${from}' to '${to}'. Valid transitions: ${validOptions}`;
 }
 
+const DEFAULT_SORT_ORDER = 0;
+
 @Injectable()
 export class TodosService {
   @Cron(CronExpression.EVERY_MINUTE)
@@ -90,6 +92,110 @@ export class TodosService {
     }
   }
 
+  private async getNextSortOrder(userId: number, status: TodoStatus): Promise<number> {
+    const result = await this.todosRepository
+      .createQueryBuilder('todo')
+      .select('COALESCE(MAX(todo.sort_order), 0)', 'max')
+      .where('todo.user_id = :userId', { userId })
+      .andWhere('todo.status = :status', { status })
+      .getRawOne<{ max: string }>();
+
+    return Number(result?.max ?? DEFAULT_SORT_ORDER) + 1;
+  }
+
+  private async loadOrderedTodos(
+    userId: number,
+    status: TodoStatus,
+    manager = this.todosRepository.manager,
+  ) {
+    return manager.getRepository(Todo).find({
+      where: { userId, status },
+      order: { sortOrder: 'ASC', id: 'ASC' },
+    });
+  }
+
+  private async renumberTodos(
+    manager: Pick<Repository<Todo>, 'save'>,
+    todos: Todo[],
+    status?: TodoStatus,
+  ) {
+    todos.forEach((todo, index) => {
+      todo.sortOrder = index + 1;
+      if (status) {
+        todo.status = status;
+      }
+    });
+
+    await manager.save(todos);
+  }
+
+  private async moveTodoToPosition(
+    user: User,
+    id: number,
+    targetStatus: TodoStatus,
+    beforeTodoId?: number,
+  ): Promise<Todo> {
+    return this.todosRepository.manager.transaction(async (manager) => {
+      const repo = manager.getRepository(Todo);
+      const todo = await repo.findOne({
+        where: { id, userId: user.id },
+        relations: { tags: true },
+      });
+
+      if (!todo) {
+        throw new NotFoundException('Todo không tồn tại');
+      }
+
+      const sourceStatus = todo.status;
+      const sourceTodos = await this.loadOrderedTodos(user.id, sourceStatus, manager);
+      const sourceRemaining = sourceTodos.filter((item) => item.id !== todo.id);
+
+      if (sourceStatus === targetStatus) {
+        if (beforeTodoId === todo.id) {
+          return todo;
+        }
+
+        const reordered = [...sourceRemaining];
+        const insertIndex = beforeTodoId
+          ? reordered.findIndex((item) => item.id === beforeTodoId)
+          : reordered.length;
+
+        if (insertIndex >= 0 && insertIndex < reordered.length) {
+          reordered.splice(insertIndex, 0, todo);
+        } else {
+          reordered.push(todo);
+        }
+
+        await this.renumberTodos(repo, reordered, targetStatus);
+        return repo.findOneOrFail({
+          where: { id: todo.id },
+          relations: { tags: true },
+        });
+      }
+
+      const targetTodos = await this.loadOrderedTodos(user.id, targetStatus, manager);
+      const reorderedTarget = [...targetTodos];
+      const insertIndex = beforeTodoId
+        ? reorderedTarget.findIndex((item) => item.id === beforeTodoId)
+        : reorderedTarget.length;
+
+      todo.status = targetStatus;
+      if (insertIndex >= 0 && insertIndex < reorderedTarget.length) {
+        reorderedTarget.splice(insertIndex, 0, todo);
+      } else {
+        reorderedTarget.push(todo);
+      }
+
+      await this.renumberTodos(repo, sourceRemaining);
+      await this.renumberTodos(repo, reorderedTarget, targetStatus);
+
+      return repo.findOneOrFail({
+        where: { id: todo.id },
+        relations: { tags: true },
+      });
+    });
+  }
+
   /**
    * PUBLIC: Creates a new todo for a user.
    * The todo always starts in 'todo' state and inherits its tags.
@@ -103,6 +209,7 @@ export class TodosService {
       dueDate,
       priority: dto.priority ?? 'Low',
       status: this.getInitialStatus(),
+      sortOrder: await this.getNextSortOrder(user.id, this.getInitialStatus()),
     });
 
     const saved = await this.todosRepository.save(todo);
@@ -126,13 +233,8 @@ export class TodosService {
    * Only todos in 'todo' state can be started.
    */
   async startTodo(id: number, user: User): Promise<Todo> {
-    const todo = await this.findOneForUser(id, user);
-    this.validateTransition(todo.status, TODO_STATUS.IN_PROGRESS, 'startTodo');
-    todo.status = TODO_STATUS.IN_PROGRESS;
-    await this.todosRepository.save(todo);
-    const updated = await this.findOneById(todo.id);
-    if (!updated) throw new NotFoundException('Todo not found after update');
-    return updated;
+    this.validateTransition((await this.findOneForUser(id, user)).status, TODO_STATUS.IN_PROGRESS, 'startTodo');
+    return this.moveTodoToPosition(user, id, TODO_STATUS.IN_PROGRESS);
   }
 
   /**
@@ -140,13 +242,8 @@ export class TodosService {
    * Todos in 'todo' or 'in_progress' state can be completed.
    */
   async completeTodo(id: number, user: User): Promise<Todo> {
-    const todo = await this.findOneForUser(id, user);
-    this.validateTransition(todo.status, TODO_STATUS.DONE, 'completeTodo');
-    todo.status = TODO_STATUS.DONE;
-    await this.todosRepository.save(todo);
-    const updated = await this.findOneById(todo.id);
-    if (!updated) throw new NotFoundException('Todo not found after update');
-    return updated;
+    this.validateTransition((await this.findOneForUser(id, user)).status, TODO_STATUS.DONE, 'completeTodo');
+    return this.moveTodoToPosition(user, id, TODO_STATUS.DONE);
   }
 
   /**
@@ -170,12 +267,22 @@ export class TodosService {
       );
     }
     
-    todo.status = TODO_STATUS.CANCELLED;
-    todo.cancellationReason = reason.trim();
-    await this.todosRepository.save(todo);
-    const updated = await this.findOneById(todo.id);
-    if (!updated) throw new NotFoundException('Todo not found after update');
-    return updated;
+    const updated = await this.moveTodoToPosition(user, id, TODO_STATUS.CANCELLED);
+    updated.cancellationReason = reason.trim();
+    await this.todosRepository.save(updated);
+    const refreshed = await this.findOneById(updated.id);
+    if (!refreshed) throw new NotFoundException('Todo not found after update');
+    return refreshed;
+  }
+
+  async move(
+    id: number,
+    user: User,
+    targetStatus?: TodoStatus,
+    beforeTodoId?: number,
+  ): Promise<Todo> {
+    const todo = await this.findOneForUser(id, user);
+    return this.moveTodoToPosition(user, todo.id, targetStatus ?? todo.status, beforeTodoId);
   }
 
   /**
@@ -211,9 +318,12 @@ export class TodosService {
         ? 'todo.created_at'
         : query.sortBy === 'priority'
           ? 'todo.priority'
-          : 'todo.due_date';
+          : query.sortBy === 'due_date'
+            ? 'todo.due_date'
+            : 'todo.sort_order';
 
-    qb.orderBy(sortColumn, query.order ?? 'ASC')
+    qb.orderBy(sortColumn, sortColumn === 'todo.sort_order' ? 'ASC' : query.order ?? 'ASC')
+      .addOrderBy('todo.id', 'ASC')
       .skip((page - 1) * limit)
       .take(limit);
 

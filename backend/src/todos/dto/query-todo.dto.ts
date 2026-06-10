@@ -28,8 +28,8 @@ export class QueryTodoDto {
   search?: string;
 
   @IsOptional()
-  @IsIn(['due_date', 'created_at', 'priority'])
-  sortBy?: 'due_date' | 'created_at' | 'priority' = 'due_date';
+  @IsIn(['due_date', 'created_at', 'priority', 'sort_order'])
+  sortBy?: 'due_date' | 'created_at' | 'priority' | 'sort_order' = 'sort_order';
 
   @IsOptional()
   @Transform(({ value }) => value?.toUpperCase()) // ← đúng chỗ: trên order

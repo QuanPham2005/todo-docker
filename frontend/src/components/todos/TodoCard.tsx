@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import { memo } from 'react';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -20,6 +21,7 @@ export type TodoItem = {
   description: string | null;
   dueDate: string | null;
   priority: string;
+  sortOrder?: number;
   status: 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
   cancellationReason?: string | null;
   tags: Array<{ name: string }>;
@@ -48,9 +50,12 @@ type Props = {
   isDragging?: boolean;
   onDragStart?: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
   onDragEnd?: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+  onDragOver?: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+  onDrop?: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+  isDropTarget?: boolean;
 };
 
-export default function TodoCard({
+function TodoCard({
   todo,
   onEdit,
   onStart,
@@ -61,6 +66,9 @@ export default function TodoCard({
   isDragging = false,
   onDragStart,
   onDragEnd,
+  onDragOver,
+  onDrop,
+  isDropTarget = false,
 }: Props) {
   const prio = priorityConfig[todo.priority] ?? priorityConfig.Low;
   const isClosed = ['overdue', 'done', 'cancelled'].includes(todo.status);
@@ -75,6 +83,12 @@ export default function TodoCard({
       onDragEnd={(event) => {
         onDragEnd?.(event, todo);
       }}
+      onDragOver={(event) => {
+        onDragOver?.(event, todo);
+      }}
+      onDrop={(event) => {
+        onDrop?.(event, todo);
+      }}
       sx={{
         p: 1.75,
         borderRadius: 2,
@@ -83,6 +97,8 @@ export default function TodoCard({
         cursor: draggable ? 'grab' : 'default',
         userSelect: 'none',
         opacity: isDragging ? 0.65 : 1,
+        outline: isDropTarget ? '2px solid #0c66e4' : '2px solid transparent',
+        outlineOffset: 0,
         '&:hover': {
           boxShadow: '0 4px 12px rgba(9,30,66,0.18)',
           transform: 'translateY(-1px)',
@@ -207,3 +223,10 @@ export default function TodoCard({
     </Paper>
   );
 }
+
+export default memo(TodoCard, (prev, next) =>
+  prev.todo === next.todo &&
+  prev.draggable === next.draggable &&
+  prev.isDragging === next.isDragging &&
+  prev.isDropTarget === next.isDropTarget,
+);

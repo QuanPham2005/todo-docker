@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import type { DragEvent } from 'react';
 import Box from '@mui/material/Box';
@@ -32,6 +32,7 @@ import {
   fetchTodoStats,
   createTodo,
   updateTodo,
+  moveTodo,
   startTodo,
   completeTodo,
   cancelTodo,
@@ -65,6 +66,151 @@ const DRAG_TARGETS: Record<TodoStatus, TodoStatus[]> = {
   cancelled: [],
 };
 
+type BoardColumnProps = {
+  column: { key: TodoStatus; label: string; color: string };
+  items: TodoItem[];
+  statusFilter: 'all' | TodoStatus;
+  statCount: Record<TodoStatus, number>;
+  draggingTodoId: number | null;
+  dropTargetStatus: TodoStatus | null;
+  dropTargetTodoId: number | null;
+  draggingTodo: TodoItem | null;
+  canDropHere: (targetStatus: TodoStatus) => boolean;
+  onColumnDragOver: (targetStatus: TodoStatus, event: DragEvent<HTMLDivElement>) => void;
+  onColumnDrop: (targetStatus: TodoStatus, event: DragEvent<HTMLDivElement>) => void;
+  onCardDragStart: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+  onCardDragEnd: () => void;
+  onCardDragOver: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+  onCardDrop: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+  onEdit: (todo: TodoItem) => void;
+  onStart: (todo: TodoItem) => void;
+  onComplete: (todo: TodoItem) => void;
+  onCancel: (id: number) => void;
+  onDelete: (id: number) => void;
+};
+
+const BoardColumn = memo(function BoardColumn({
+  column,
+  items,
+  statusFilter,
+  statCount,
+  draggingTodoId,
+  dropTargetStatus,
+  dropTargetTodoId,
+  draggingTodo,
+  canDropHere,
+  onColumnDragOver,
+  onColumnDrop,
+  onCardDragStart,
+  onCardDragEnd,
+  onCardDragOver,
+  onCardDrop,
+  onEdit,
+  onStart,
+  onComplete,
+  onCancel,
+  onDelete,
+}: BoardColumnProps) {
+  return (
+    <Box
+      onDragOver={(event) => {
+        if (!draggingTodo || !canDropHere(column.key)) return;
+        onColumnDragOver(column.key, event);
+      }}
+      onDrop={(event) => {
+        onColumnDrop(column.key, event);
+      }}
+      sx={{
+        flex: statusFilter === 'all' ? '0 0 300px' : '1 1 100%',
+        minWidth: statusFilter === 'all' ? 300 : undefined,
+        maxWidth: statusFilter === 'all' ? 320 : undefined,
+        bgcolor: dropTargetStatus === column.key ? '#e9f2ff' : '#ebecf0',
+        border: dropTargetStatus === column.key ? '1px solid #0c66e4' : '1px solid transparent',
+        borderRadius: 2.5,
+        p: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: 'calc(100vh - 320px)',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: 1,
+          py: 1,
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: column.color }} />
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            {column.label}
+          </Typography>
+        </Stack>
+        <Chip
+          label={statCount[column.key]}
+          size="small"
+          sx={{ bgcolor: 'rgba(9,30,66,0.08)', color: 'text.secondary', fontWeight: 700 }}
+        />
+      </Box>
+
+      <Stack
+        spacing={1}
+        sx={{
+          overflowY: 'auto',
+          px: 0.5,
+          pb: 0.5,
+          flex: 1,
+        }}
+      >
+        {items.length === 0 ? (
+          <Box
+            sx={{
+              py: 3,
+              textAlign: 'center',
+              color: 'text.disabled',
+              border: '2px dashed #dfe1e6',
+              borderRadius: 2,
+              m: 0.5,
+            }}
+          >
+            <Typography variant="caption">Không có công việc</Typography>
+          </Box>
+        ) : (
+          items.map((todo) => (
+            <TodoCard
+              key={todo.id}
+              todo={todo}
+              draggable={DRAG_TARGETS[todo.status].length > 0}
+              isDragging={draggingTodoId === todo.id}
+              isDropTarget={dropTargetTodoId === todo.id}
+              onEdit={onEdit}
+              onStart={onStart}
+              onComplete={onComplete}
+              onCancel={onCancel}
+              onDelete={onDelete}
+              onDragStart={onCardDragStart}
+              onDragEnd={onCardDragEnd}
+              onDragOver={onCardDragOver}
+              onDrop={onCardDrop}
+            />
+          ))
+        )}
+      </Stack>
+    </Box>
+  );
+}, (prev, next) =>
+  prev.column === next.column &&
+  prev.items === next.items &&
+  prev.statusFilter === next.statusFilter &&
+  prev.draggingTodoId === next.draggingTodoId &&
+  prev.dropTargetStatus === next.dropTargetStatus &&
+  prev.dropTargetTodoId === next.dropTargetTodoId &&
+  prev.statCount[next.column.key] === next.statCount[next.column.key] &&
+  prev.draggingTodo === next.draggingTodo,
+);
+
 type TodoForm = {
   title: string;
   description: string;
@@ -86,7 +232,7 @@ export default function TodosPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'all' | TodoStatus>('all');
   const [priority, setPriority] = useState('all');
-  const [sortBy, setSortBy] = useState('due_date');
+  const [sortBy, setSortBy] = useState('sort_order');
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -101,6 +247,7 @@ export default function TodosPage() {
   const [cancellationReason, setCancellationReason] = useState('');
   const [draggingTodoId, setDraggingTodoId] = useState<number | null>(null);
   const [dropTargetStatus, setDropTargetStatus] = useState<TodoStatus | null>(null);
+  const [dropTargetTodoId, setDropTargetTodoId] = useState<number | null>(null);
   const [restoreTodoId, setRestoreTodoId] = useState<number | null>(null);
   const [stats, setStats] = useState({
     todo: 0,
@@ -332,6 +479,9 @@ export default function TodosPage() {
     todos.forEach((todo) => {
       if (map[todo.status]) map[todo.status].push(todo);
     });
+    (Object.keys(map) as TodoStatus[]).forEach((key) => {
+      map[key].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+    });
     return map;
   }, [todos]);
 
@@ -346,11 +496,14 @@ export default function TodosPage() {
   const draggingTodo = draggingTodoId ? todos.find((todo) => todo.id === draggingTodoId) ?? null : null;
 
   const canDropHere = (targetStatus: TodoStatus) =>
-    draggingTodo ? DRAG_TARGETS[draggingTodo.status].includes(targetStatus) : false;
+    draggingTodo
+      ? draggingTodo.status === targetStatus || DRAG_TARGETS[draggingTodo.status].includes(targetStatus)
+      : false;
 
   const clearDragState = () => {
     setDraggingTodoId(null);
     setDropTargetStatus(null);
+    setDropTargetTodoId(null);
   };
 
   const handleCardDragStart = (event: DragEvent<HTMLDivElement>, todo: TodoItem) => {
@@ -358,6 +511,7 @@ export default function TodosPage() {
     event.dataTransfer.setData('text/plain', String(todo.id));
     setDraggingTodoId(todo.id);
     setDropTargetStatus(null);
+    setDropTargetTodoId(null);
   };
 
   const handleCardDragEnd = () => {
@@ -367,7 +521,7 @@ export default function TodosPage() {
   const handleDropToStatus = async (targetStatus: TodoStatus) => {
     if (!draggingTodo) return;
 
-    if (!canDropHere(targetStatus) || draggingTodo.status === targetStatus) {
+    if (!canDropHere(targetStatus)) {
       clearDragState();
       return;
     }
@@ -380,23 +534,75 @@ export default function TodosPage() {
         return;
       }
 
-      if (targetStatus === 'in_progress') {
-        await startTodo(draggingTodo.id);
-      } else if (targetStatus === 'done') {
-        await completeTodo(draggingTodo.id);
-      } else if (targetStatus === 'cancelled') {
+      if (targetStatus === 'cancelled' && draggingTodo.status !== 'cancelled') {
         setCancelingTodoId(draggingTodo.id);
         setCancellationReason('');
         clearDragState();
         return;
       }
 
+      const firstItemId = grouped[targetStatus][0]?.id;
+      await moveTodo(draggingTodo.id, {
+        targetStatus,
+        beforeTodoId: firstItemId,
+      });
       loadTodos();
     } catch {
-      setError('Không thể đổi trạng thái công việc. Vui lòng thử lại.');
+      setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
     } finally {
       clearDragState();
     }
+  };
+
+  const handleDropToCard = async (targetTodo: TodoItem) => {
+    if (!draggingTodo || draggingTodo.id === targetTodo.id) {
+      clearDragState();
+      return;
+    }
+
+    setError(null);
+    try {
+      if (draggingTodo.status === 'overdue' && targetTodo.status === 'todo') {
+        handleRestoreOverdueTodo(draggingTodo);
+        clearDragState();
+        return;
+      }
+
+      await moveTodo(draggingTodo.id, {
+        targetStatus: targetTodo.status,
+        beforeTodoId: targetTodo.id,
+      });
+      loadTodos();
+    } catch {
+      setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
+    } finally {
+      clearDragState();
+    }
+  };
+
+  const handleCardDragOver = (event: DragEvent<HTMLDivElement>, todo: TodoItem) => {
+    if (!draggingTodo || draggingTodo.id === todo.id) return;
+    if (!canDropHere(todo.status)) return;
+
+    event.preventDefault();
+    setDropTargetStatus(todo.status);
+    setDropTargetTodoId(todo.id);
+  };
+
+  const handleCardDrop = (event: DragEvent<HTMLDivElement>, todo: TodoItem) => {
+    event.preventDefault();
+    void handleDropToCard(todo);
+  };
+
+  const handleColumnDragOver = (targetStatus: TodoStatus, event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDropTargetStatus(targetStatus);
+    setDropTargetTodoId(null);
+  };
+
+  const handleColumnDrop = (targetStatus: TodoStatus, event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    void handleDropToStatus(targetStatus);
   };
 
   return (
@@ -493,6 +699,7 @@ export default function TodosPage() {
               value={sortBy}
               onChange={(event: SelectChangeEvent<string>) => setSortBy(event.target.value)}
             >
+              <MenuItem value="sort_order">Thứ tự kéo thả</MenuItem>
               <MenuItem value="due_date">Ngày đến hạn</MenuItem>
               <MenuItem value="priority">Ưu tiên</MenuItem>
               <MenuItem value="created_at">Mới nhất</MenuItem>
@@ -531,95 +738,30 @@ export default function TodosPage() {
           }}
         >
           {visibleColumns.map((col) => {
-            const items = grouped[col.key];
             return (
-              <Box
+              <BoardColumn
                 key={col.key}
-                onDragOver={(event) => {
-                  if (!canDropHere(col.key)) return;
-                  event.preventDefault();
-                  setDropTargetStatus(col.key);
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  void handleDropToStatus(col.key);
-                }}
-                sx={{
-                  flex: status === 'all' ? '0 0 300px' : '1 1 100%',
-                  minWidth: status === 'all' ? 300 : undefined,
-                  maxWidth: status === 'all' ? 320 : undefined,
-                  bgcolor: dropTargetStatus === col.key ? '#e9f2ff' : '#ebecf0',
-                  border: dropTargetStatus === col.key ? '1px solid #0c66e4' : '1px solid transparent',
-                  borderRadius: 2.5,
-                  p: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  maxHeight: 'calc(100vh - 320px)',
-                }}
-              >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    px: 1,
-                    py: 1,
-                  }}
-                >
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: col.color }} />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      {col.label}
-                    </Typography>
-                  </Stack>
-                  <Chip
-                    label={statCount[col.key]}
-                    size="small"
-                    sx={{ bgcolor: 'rgba(9,30,66,0.08)', color: 'text.secondary', fontWeight: 700 }}
-                  />
-                </Box>
-
-                <Stack
-                  spacing={1}
-                  sx={{
-                    overflowY: 'auto',
-                    px: 0.5,
-                    pb: 0.5,
-                    flex: 1,
-                  }}
-                >
-                  {items.length === 0 ? (
-                    <Box
-                      sx={{
-                        py: 3,
-                        textAlign: 'center',
-                        color: 'text.disabled',
-                        border: '2px dashed #dfe1e6',
-                        borderRadius: 2,
-                        m: 0.5,
-                      }}
-                    >
-                      <Typography variant="caption">Không có công việc</Typography>
-                    </Box>
-                  ) : (
-                    items.map((todo) => (
-                      <TodoCard
-                        key={todo.id}
-                        todo={todo}
-                        draggable={DRAG_TARGETS[todo.status].length > 0}
-                        isDragging={draggingTodoId === todo.id}
-                        onEdit={handleEdit}
-                        onStart={handleStart}
-                        onComplete={handleComplete}
-                        onCancel={handleCancelClick}
-                        onDelete={handleDelete}
-                        onDragStart={handleCardDragStart}
-                        onDragEnd={handleCardDragEnd}
-                      />
-                    ))
-                  )}
-                </Stack>
-              </Box>
+                column={col}
+                items={grouped[col.key]}
+                statusFilter={status}
+                statCount={statCount}
+                draggingTodoId={draggingTodoId}
+                dropTargetStatus={dropTargetStatus}
+                dropTargetTodoId={dropTargetTodoId}
+                draggingTodo={draggingTodo}
+                canDropHere={canDropHere}
+                onColumnDragOver={handleColumnDragOver}
+                onColumnDrop={handleColumnDrop}
+                onCardDragStart={handleCardDragStart}
+                onCardDragEnd={handleCardDragEnd}
+                onCardDragOver={handleCardDragOver}
+                onCardDrop={handleCardDrop}
+                onEdit={handleEdit}
+                onStart={handleStart}
+                onComplete={handleComplete}
+                onCancel={handleCancelClick}
+                onDelete={handleDelete}
+              />
             );
           })}
         </Box>
