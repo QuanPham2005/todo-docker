@@ -66,6 +66,42 @@ const DRAG_TARGETS: Record<TodoStatus, TodoStatus[]> = {
   cancelled: [],
 };
 
+// Optimistically reorder the flat todo list so the board updates instantly,
+// without refetching the whole page. Handles both same-column reordering
+// (up/down) and cross-column moves. `beforeTodoId` = insert before that card;
+// omit it to append to the end of the target column.
+function applyReorder(
+  todos: TodoItem[],
+  draggingId: number,
+  targetStatus: TodoStatus,
+  beforeTodoId?: number,
+): TodoItem[] {
+  const dragging = todos.find((todo) => todo.id === draggingId);
+  if (!dragging) return todos;
+
+  const column = todos
+    .filter((todo) => todo.status === targetStatus && todo.id !== draggingId)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+
+  const movedItem: TodoItem = { ...dragging, status: targetStatus };
+
+  let insertIndex = column.length;
+  if (beforeTodoId != null) {
+    const idx = column.findIndex((todo) => todo.id === beforeTodoId);
+    if (idx !== -1) insertIndex = idx;
+  }
+  column.splice(insertIndex, 0, movedItem);
+
+  const orderMap = new Map<number, number>();
+  column.forEach((todo, index) => orderMap.set(todo.id, index + 1));
+
+  return todos.map((todo) => {
+    if (todo.id === draggingId) return { ...movedItem, sortOrder: orderMap.get(draggingId) };
+    if (orderMap.has(todo.id)) return { ...todo, sortOrder: orderMap.get(todo.id)! };
+    return todo;
+  });
+}
+
 type BoardColumnProps = {
   column: { key: TodoStatus; label: string; color: string };
   items: TodoItem[];
@@ -182,7 +218,7 @@ const BoardColumn = memo(function BoardColumn({
             <TodoCard
               key={todo.id}
               todo={todo}
-              draggable={DRAG_TARGETS[todo.status].length > 0}
+              draggable
               isDragging={draggingTodoId === todo.id}
               isDropTarget={dropTargetTodoId === todo.id}
               onEdit={onEdit}
@@ -543,12 +579,18 @@ export default function TodosPage() {
         return;
       }
 
-      const firstItemId = grouped[targetStatus][0]?.id;
-      await moveTodo(draggingTodo.id, {
-        targetStatus,
-        beforeTodoId: firstItemId,
-      });
-      loadTodos();
+      // Dropping on empty column space appends to the end of that column.
+      const movingId = draggingTodo.id;
+      setTodos((current) => applyReorder(current, movingId, targetStatus));
+      clearDragState();
+      try {
+        await moveTodo(movingId, { targetStatus });
+        loadStats();
+      } catch {
+        setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
+        loadTodos();
+      }
+      return;
     } catch {
       setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
     } finally {
@@ -570,11 +612,23 @@ export default function TodosPage() {
         return;
       }
 
-      await moveTodo(draggingTodo.id, {
-        targetStatus: targetTodo.status,
-        beforeTodoId: targetTodo.id,
-      });
-      loadTodos();
+      // Optimistically reorder locally so only the affected cards move,
+      // instead of refetching and re-rendering the whole board.
+      const movingId = draggingTodo.id;
+      const targetStatus = targetTodo.status;
+      setTodos((current) => applyReorder(current, movingId, targetStatus, targetTodo.id));
+      clearDragState();
+      try {
+        await moveTodo(movingId, {
+          targetStatus,
+          beforeTodoId: targetTodo.id,
+        });
+        loadStats();
+      } catch {
+        setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
+        loadTodos();
+      }
+      return;
     } catch {
       setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
     } finally {
@@ -587,12 +641,16 @@ export default function TodosPage() {
     if (!canDropHere(todo.status)) return;
 
     event.preventDefault();
+    event.stopPropagation();
     setDropTargetStatus(todo.status);
     setDropTargetTodoId(todo.id);
   };
 
   const handleCardDrop = (event: DragEvent<HTMLDivElement>, todo: TodoItem) => {
     event.preventDefault();
+    // Prevent the parent column's onDrop from also firing, which would
+    // otherwise override the card-level position with a column append.
+    event.stopPropagation();
     void handleDropToCard(todo);
   };
 
