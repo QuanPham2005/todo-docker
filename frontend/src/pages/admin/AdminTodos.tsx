@@ -52,11 +52,11 @@ const todoPriorityColorMap: Record<string, 'default' | 'success' | 'warning' | '
   High: 'error',
 };
 
-const todoSortOptions = [
-  { value: 'due_date', label: 'Ngày đến hạn' },
-  { value: 'priority', label: 'Ưu tiên' },
-  { value: 'created_at', label: 'Ngày tạo' },
-];
+// const todoSortOptions = [
+//   { value: 'due_date', label: 'Ngày đến hạn' },
+//   { value: 'priority', label: 'Ưu tiên' },
+//   { value: 'created_at', label: 'Ngày tạo' },
+// ];
 
 type AdminTodo = {
   id: number;
@@ -78,7 +78,7 @@ export default function AdminTodos() {
   const [todoSearch, setTodoSearch] = useState('');
   const [todoStatus, setTodoStatus] = useState('all');
   const [todoPriority, setTodoPriority] = useState('all');
-  const [todoSortBy, setTodoSortBy] = useState('due_date');
+  // const [todoSortBy, setTodoSortBy] = useState('due_date');
   const [todoOrder, setTodoOrder] = useState<'asc' | 'desc'>('asc');
   const [todoPage, setTodoPage] = useState(1);
 
@@ -88,11 +88,11 @@ export default function AdminTodos() {
       limit: 10,
       status: todoStatus,
       priority: todoPriority,
-      sortBy: todoSortBy,
+      // sortBy: todoSortBy,
       order: todoOrder.toUpperCase(),
       search: todoSearch,
     }),
-    [todoPage, todoStatus, todoPriority, todoSortBy, todoOrder, todoSearch],
+    [todoPage, todoStatus, todoPriority, todoOrder, todoSearch],
   );
 
   useEffect(() => {
