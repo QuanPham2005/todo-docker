@@ -70,7 +70,7 @@ function TodoCard({
   onDragOver,
   onDrop,
   isDropTarget = false,
-  isDragActive = false,
+  // isDragActive = false,
 }: Props) {
   const prio = priorityConfig[todo.priority] ?? priorityConfig.Low;
   const isClosed = ['overdue', 'done', 'cancelled'].includes(todo.status);
