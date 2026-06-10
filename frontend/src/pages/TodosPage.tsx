@@ -232,8 +232,8 @@ export default function TodosPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'all' | TodoStatus>('all');
   const [priority, setPriority] = useState('all');
-  const [sortBy, setSortBy] = useState('sort_order');
-  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortBy] = useState('sort_order');
+  const [order, setOrder] = useState<'all' | 'asc' | 'desc'>('all');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(10);
@@ -273,8 +273,10 @@ export default function TodosPage() {
       limit,
       status,
       sortBy,
-      order,
     };
+    if (order !== 'all') {
+      params.order = order;
+    }
     if (search.trim()) {
       params.search = search.trim();
     }
@@ -636,7 +638,7 @@ export default function TodosPage() {
             gridTemplateColumns: {
               xs: '1fr',
               sm: '1fr 1fr',
-              lg: '2fr 1fr 1fr 1fr 1fr',
+              lg: '2fr 1fr 1fr 1fr ',
             },
           }}
         >
@@ -691,7 +693,7 @@ export default function TodosPage() {
               ))}
             </Select>
           </FormControl>
-          <FormControl fullWidth size="small">
+          {/* <FormControl fullWidth size="small">
             <InputLabel id="sort-label">Sắp xếp</InputLabel>
             <Select
               labelId="sort-label"
@@ -704,17 +706,18 @@ export default function TodosPage() {
               <MenuItem value="priority">Ưu tiên</MenuItem>
               <MenuItem value="created_at">Mới nhất</MenuItem>
             </Select>
-          </FormControl>
+          </FormControl> */}
           <FormControl fullWidth size="small">
             <InputLabel id="order-label">Thứ tự</InputLabel>
             <Select
               labelId="order-label"
               label="Thứ tự"
               value={order}
-              onChange={(event: SelectChangeEvent<'asc' | 'desc'>) =>
-                setOrder(event.target.value as 'asc' | 'desc')
+              onChange={(event: SelectChangeEvent<'all' | 'asc' | 'desc'>) =>
+                setOrder(event.target.value as 'all' | 'asc' | 'desc')
               }
             >
+              <MenuItem value="all">Tất cả</MenuItem>
               <MenuItem value="asc">Tăng dần</MenuItem>
               <MenuItem value="desc">Giảm dần</MenuItem>
             </Select>

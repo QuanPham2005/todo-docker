@@ -120,18 +120,28 @@ export default function AdminTodos() {
 
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <Paper sx={{ p: 3 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+      <Paper sx={{ p: 2, borderRadius: 2.5 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 1.5,
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: '1fr 1fr',
+              lg: '2fr 1fr 1fr 1fr ',
+            },
+          }}
+        >
           <TextField
-            label="Tìm kiếm todo hoặc người dùng"
+            fullWidth
+            placeholder="Tìm kiếm todo hoặc người dùng"
             value={todoSearch}
             onChange={(event) => {
               setTodoSearch(event.target.value);
               setTodoPage(1);
             }}
-            sx={{ width: { xs: '100%', sm: 280 } }}
           />
-          <FormControl sx={{ minWidth: 140 }}>
+          <FormControl fullWidth size="small">
             <InputLabel id="todo-status-label">Trạng thái</InputLabel>
             <Select
               labelId="todo-status-label"
@@ -149,7 +159,7 @@ export default function AdminTodos() {
               ))}
             </Select>
           </FormControl>
-          <FormControl sx={{ minWidth: 140 }}>
+          <FormControl fullWidth size="small">
             <InputLabel id="todo-priority-label">Ưu tiên</InputLabel>
             <Select
               labelId="todo-priority-label"
@@ -167,7 +177,7 @@ export default function AdminTodos() {
               ))}
             </Select>
           </FormControl>
-          <FormControl sx={{ minWidth: 140 }}>
+          {/* <FormControl sx={{ minWidth: 140 }}>
             <InputLabel id="todo-sort-label">Sắp xếp</InputLabel>
             <Select
               labelId="todo-sort-label"
@@ -181,8 +191,8 @@ export default function AdminTodos() {
                 </MenuItem>
               ))}
             </Select>
-          </FormControl>
-          <FormControl sx={{ minWidth: 140 }}>
+          </FormControl> */}
+          <FormControl fullWidth size="small">
             <InputLabel id="todo-order-label">Thứ tự</InputLabel>
             <Select
               labelId="todo-order-label"
@@ -196,7 +206,7 @@ export default function AdminTodos() {
               <MenuItem value="desc">Giảm dần</MenuItem>
             </Select>
           </FormControl>
-        </Stack>
+        </Box>
       </Paper>
 
       <Paper>
