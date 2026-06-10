@@ -53,6 +53,7 @@ type Props = {
   onDragOver?: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
   onDrop?: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
   isDropTarget?: boolean;
+  isDragActive?: boolean;
 };
 
 function TodoCard({
@@ -69,6 +70,7 @@ function TodoCard({
   onDragOver,
   onDrop,
   isDropTarget = false,
+  isDragActive = false,
 }: Props) {
   const prio = priorityConfig[todo.priority] ?? priorityConfig.Low;
   const isClosed = ['overdue', 'done', 'cancelled'].includes(todo.status);
@@ -228,5 +230,6 @@ export default memo(TodoCard, (prev, next) =>
   prev.todo === next.todo &&
   prev.draggable === next.draggable &&
   prev.isDragging === next.isDragging &&
-  prev.isDropTarget === next.isDropTarget,
+  prev.isDropTarget === next.isDropTarget &&
+  prev.isDragActive === next.isDragActive,
 );

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import type { DragEvent } from 'react';
 import Box from '@mui/material/Box';
@@ -220,6 +220,7 @@ const BoardColumn = memo(function BoardColumn({
               todo={todo}
               draggable
               isDragging={draggingTodoId === todo.id}
+              isDragActive={draggingTodoId !== null}
               isDropTarget={dropTargetTodoId === todo.id}
               onEdit={onEdit}
               onStart={onStart}
@@ -282,6 +283,7 @@ export default function TodosPage() {
   const [cancelingTodoId, setCancelingTodoId] = useState<number | null>(null);
   const [cancellationReason, setCancellationReason] = useState('');
   const [draggingTodoId, setDraggingTodoId] = useState<number | null>(null);
+  const draggingTodoRef = useRef<TodoItem | null>(null);
   const [dropTargetStatus, setDropTargetStatus] = useState<TodoStatus | null>(null);
   const [dropTargetTodoId, setDropTargetTodoId] = useState<number | null>(null);
   const [restoreTodoId, setRestoreTodoId] = useState<number | null>(null);
@@ -533,12 +535,21 @@ export default function TodosPage() {
   };
   const draggingTodo = draggingTodoId ? todos.find((todo) => todo.id === draggingTodoId) ?? null : null;
 
-  const canDropHere = (targetStatus: TodoStatus) =>
-    draggingTodo
-      ? draggingTodo.status === targetStatus || DRAG_TARGETS[draggingTodo.status].includes(targetStatus)
-      : false;
+  const getDraggingTodo = () => draggingTodoRef.current;
+
+  const canDropHere = (targetStatus: TodoStatus) => {
+    const active = getDraggingTodo();
+    if (!active) return false;
+
+    if (active.status === 'overdue' && targetStatus === 'todo') {
+      return true;
+    }
+
+    return active.status === targetStatus || DRAG_TARGETS[active.status].includes(targetStatus);
+  };
 
   const clearDragState = () => {
+    draggingTodoRef.current = null;
     setDraggingTodoId(null);
     setDropTargetStatus(null);
     setDropTargetTodoId(null);
@@ -547,6 +558,7 @@ export default function TodosPage() {
   const handleCardDragStart = (event: DragEvent<HTMLDivElement>, todo: TodoItem) => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', String(todo.id));
+    draggingTodoRef.current = todo;
     setDraggingTodoId(todo.id);
     setDropTargetStatus(null);
     setDropTargetTodoId(null);
@@ -556,8 +568,15 @@ export default function TodosPage() {
     clearDragState();
   };
 
+  const openCancelFlow = (todoId: number) => {
+    setCancelingTodoId(todoId);
+    setCancellationReason('');
+    clearDragState();
+  };
+
   const handleDropToStatus = async (targetStatus: TodoStatus) => {
-    if (!draggingTodo) return;
+    const active = getDraggingTodo();
+    if (!active) return;
 
     if (!canDropHere(targetStatus)) {
       clearDragState();
@@ -566,21 +585,60 @@ export default function TodosPage() {
 
     setError(null);
     try {
-      if (draggingTodo.status === 'overdue' && targetStatus === 'todo') {
-        handleRestoreOverdueTodo(draggingTodo);
+      if (active.status === 'overdue' && targetStatus === 'todo') {
+        handleRestoreOverdueTodo(active);
         clearDragState();
         return;
       }
 
-      if (targetStatus === 'cancelled' && draggingTodo.status !== 'cancelled') {
-        setCancelingTodoId(draggingTodo.id);
-        setCancellationReason('');
+      if (targetStatus === 'cancelled') {
+        if (active.status !== 'cancelled') {
+          openCancelFlow(active.id);
+          return;
+        }
+
+        const movingId = active.id;
+        setTodos((current) => applyReorder(current, movingId, targetStatus));
         clearDragState();
+        try {
+          await moveTodo(movingId, { targetStatus });
+          loadStats();
+        } catch {
+          setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
+          loadTodos();
+        }
+        return;
+      }
+
+      const movingId = active.id;
+
+      if (targetStatus === 'in_progress' && active.status === 'todo') {
+        setTodos((current) => applyReorder(current, movingId, targetStatus));
+        clearDragState();
+        try {
+          await startTodo(movingId);
+          loadStats();
+        } catch {
+          setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
+          loadTodos();
+        }
+        return;
+      }
+
+      if (targetStatus === 'done' && active.status !== 'done') {
+        setTodos((current) => applyReorder(current, movingId, targetStatus));
+        clearDragState();
+        try {
+          await moveTodo(movingId, { targetStatus });
+          loadStats();
+        } catch {
+          setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
+          loadTodos();
+        }
         return;
       }
 
       // Dropping on empty column space appends to the end of that column.
-      const movingId = draggingTodo.id;
       setTodos((current) => applyReorder(current, movingId, targetStatus));
       clearDragState();
       try {
@@ -599,22 +657,58 @@ export default function TodosPage() {
   };
 
   const handleDropToCard = async (targetTodo: TodoItem) => {
-    if (!draggingTodo || draggingTodo.id === targetTodo.id) {
+    const active = getDraggingTodo();
+    if (!active || active.id === targetTodo.id) {
       clearDragState();
       return;
     }
 
     setError(null);
     try {
-      if (draggingTodo.status === 'overdue' && targetTodo.status === 'todo') {
-        handleRestoreOverdueTodo(draggingTodo);
+      if (active.status === 'overdue' && targetTodo.status === 'todo') {
+        handleRestoreOverdueTodo(active);
         clearDragState();
+        return;
+      }
+
+      if (targetTodo.status === 'cancelled' && active.status !== 'cancelled') {
+        openCancelFlow(active.id);
+        return;
+      }
+
+      if (targetTodo.status === 'in_progress' && active.status === 'todo') {
+        const movingId = active.id;
+        setTodos((current) => applyReorder(current, movingId, targetTodo.status, targetTodo.id));
+        clearDragState();
+        try {
+          await startTodo(movingId);
+          loadStats();
+        } catch {
+          setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
+          loadTodos();
+        }
+        return;
+      }
+
+      if (targetTodo.status === 'done' && active.status !== 'done') {
+        const movingId = active.id;
+        setTodos((current) => applyReorder(current, movingId, targetTodo.status));
+        clearDragState();
+        try {
+          await moveTodo(movingId, {
+            targetStatus: targetTodo.status,
+          });
+          loadStats();
+        } catch {
+          setError('Không thể sắp xếp lại công việc. Vui lòng thử lại.');
+          loadTodos();
+        }
         return;
       }
 
       // Optimistically reorder locally so only the affected cards move,
       // instead of refetching and re-rendering the whole board.
-      const movingId = draggingTodo.id;
+      const movingId = active.id;
       const targetStatus = targetTodo.status;
       setTodos((current) => applyReorder(current, movingId, targetStatus, targetTodo.id));
       clearDragState();
@@ -637,7 +731,8 @@ export default function TodosPage() {
   };
 
   const handleCardDragOver = (event: DragEvent<HTMLDivElement>, todo: TodoItem) => {
-    if (!draggingTodo || draggingTodo.id === todo.id) return;
+    const active = getDraggingTodo();
+    if (!active || active.id === todo.id) return;
     if (!canDropHere(todo.status)) return;
 
     event.preventDefault();
