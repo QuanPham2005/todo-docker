@@ -59,7 +59,7 @@ const stats = useSelector((state: any) => (state.admin?.stats || state.todos?.ad
       totalUsers: {
         key: 'totalUsers',
         label: 'Người dùng',
-        value: overview?.totalUsers ?? 0,
+        value: stats?.totalUsers ?? 0,
         color: '#0c66e4',
         bg: '#e9f2ff',
         icon: <PeopleAltRoundedIcon />,
@@ -67,7 +67,7 @@ const stats = useSelector((state: any) => (state.admin?.stats || state.todos?.ad
       totalAdmins: {
         key: 'totalAdmins',
         label: 'Admin',
-        value: overview?.totalAdmins ?? 0,
+        value: stats?.totalAdmins ?? 0,
         color: '#0c66e4',
         bg: '#e9f2ff',
         icon: <AdminPanelSettingsRoundedIcon />,
@@ -75,7 +75,7 @@ const stats = useSelector((state: any) => (state.admin?.stats || state.todos?.ad
       totalTodos: {
         key: 'totalTodos',
         label: 'Tổng todo',
-        value: overview?.totalTodos ?? 0,
+        value: stats?.totalTodos ?? 0,
         color: '#5e6c84',
         bg: '#ebecf0',
         icon: <ChecklistRoundedIcon />,
@@ -121,10 +121,10 @@ const stats = useSelector((state: any) => (state.admin?.stats || state.todos?.ad
         icon: <CancelRoundedIcon />,
       },
     }),
-    [overview],
+    [overview, stats],
   );
 
-  const totalTodos = overview?.totalTodos ?? 0;
+  const totalTodos = stats?.totalTodos ?? 0;
   const completionRate = totalTodos > 0 ? Math.round(((overview?.done ?? 0) / totalTodos) * 100) : 0;
 
   const handleDragStart = (key: string) => setDragKey(key);
