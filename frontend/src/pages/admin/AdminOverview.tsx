@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../store';
+
+interface AdminStats {
+  totalUsers: number;
+  totalAdmins: number;
+  totalTodos: number;
+}
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -29,6 +35,7 @@ type StatCardConfig = {
 export default function AdminOverview() {
   const dispatch = useDispatch();
   const { summary: overview, isLoading } = useSelector((state: RootState) => state.todos);
+const stats = useSelector((state: any) => (state.admin?.stats || state.todos?.adminStats)) as AdminStats;
 
   // Track ordering of the stat cards so they can be rearranged.
   const [order, setOrder] = useState<string[]>([

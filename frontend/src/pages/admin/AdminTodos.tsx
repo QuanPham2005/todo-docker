@@ -238,7 +238,7 @@ export default function AdminTodos() {
                   </TableCell>
                 </TableRow>
               ) : (
-                todos.map((todo: AdminTodo) => (
+                (todos as AdminTodo[]).map((todo: AdminTodo) => (
                   <TableRow key={todo.id} hover>
                     <TableCell>{todo.title}</TableCell>
                     <TableCell>{todo.user.email}</TableCell>
