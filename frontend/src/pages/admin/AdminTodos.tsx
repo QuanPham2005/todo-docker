@@ -125,11 +125,11 @@ export default function AdminTodos() {
 
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <Paper sx={{ p: 2, borderRadius: 2.5 }}>
+      <Paper sx={{ p: 2.5, borderRadius: 2.5, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
         <Box
           sx={{
             display: 'grid',
-            gap: 1.5,
+            gap: 2,
             gridTemplateColumns: {
               xs: '1fr',
               sm: '1fr 1fr',
@@ -146,8 +146,9 @@ export default function AdminTodos() {
               setTodoSearch(event.target.value);
               setTodoPage(1);
             }}
+            sx={{ minHeight: 48 }}
           />
-          <FormControl fullWidth size="small">
+          <FormControl fullWidth size="small" sx={{ minHeight: 48 }}>
             <InputLabel id="todo-status-label">Trạng thái</InputLabel>
             <Select
               labelId="todo-status-label"
@@ -165,7 +166,7 @@ export default function AdminTodos() {
               ))}
             </Select>
           </FormControl>
-          <FormControl fullWidth size="small">
+          <FormControl fullWidth size="small" sx={{ minHeight: 48 }}>
             <InputLabel id="todo-priority-label">Ưu tiên</InputLabel>
             <Select
               labelId="todo-priority-label"
@@ -198,7 +199,7 @@ export default function AdminTodos() {
               ))}
             </Select>
           </FormControl> */}
-          <FormControl fullWidth size="small">
+          <FormControl fullWidth size="small" sx={{ minHeight: 48 }}>
             <InputLabel id="todo-order-label">Thứ tự</InputLabel>
             <Select
               labelId="todo-order-label"
