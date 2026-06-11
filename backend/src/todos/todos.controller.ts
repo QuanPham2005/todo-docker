@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
+  ValidationPipe,
 } from '@nestjs/common';
 import { TodosService } from './todos.service';
 import { CreateTodoDto } from './dto/create-todo.dto';
@@ -48,7 +49,7 @@ export class TodosController {
   @Post()
   async create(
     @CurrentUser() user: User,
-    @Body(new FutureDatePipe()) dto: CreateTodoDto,
+    @Body(new ValidationPipe()) dto: CreateTodoDto,
   ) {
     return this.todosService.create(user, dto);
   }
@@ -57,7 +58,7 @@ export class TodosController {
   async update(
     @CurrentUser() user: User,
     @Param('id', ParseIntPipe) id: number,
-    @Body(new FutureDatePipe()) dto: UpdateTodoDto,
+    @Body(new ValidationPipe()) dto: UpdateTodoDto,
   ) {
     return this.todosService.update(id, user, dto);
   }
@@ -66,7 +67,7 @@ export class TodosController {
   async move(
     @CurrentUser() user: User,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: ReorderTodoDto,
+    @Body(new ValidationPipe()) dto: ReorderTodoDto,
   ) {
     return this.todosService.move(id, user, dto.targetStatus, dto.beforeTodoId);
   }

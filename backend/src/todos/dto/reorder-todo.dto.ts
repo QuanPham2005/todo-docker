@@ -1,7 +1,7 @@
-import { IsIn, IsInt, IsOptional, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Min, IsNotEmpty } from 'class-validator';
 
 export class ReorderTodoDto {
-  @IsOptional()
+  @IsNotEmpty()
   @IsIn(['todo', 'in_progress', 'done', 'overdue', 'cancelled'])
   targetStatus?: 'todo' | 'in_progress' | 'done' | 'overdue' | 'cancelled';
 

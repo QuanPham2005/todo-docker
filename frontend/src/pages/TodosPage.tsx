@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import type { DragEvent } from 'react';
 import Box from '@mui/material/Box';
@@ -102,7 +102,30 @@ function applyReorder(
   });
 }
 
-type BoardColumnProps = {
+// type BoardColumnProps = {
+//   column: { key: TodoStatus; label: string; color: string };
+//   items: TodoItem[];
+//   statusFilter: 'all' | TodoStatus;
+//   statCount: Record<TodoStatus, number>;
+//   draggingTodoId: number | null;
+//   dropTargetStatus: TodoStatus | null;
+//   dropTargetTodoId: number | null;
+//   draggingTodo: TodoItem | null;
+//   canDropHere: (targetStatus: TodoStatus) => boolean;
+//   onColumnDragOver: (targetStatus: TodoStatus, event: DragEvent<HTMLDivElement>) => void;
+//   onColumnDrop: (targetStatus: TodoStatus, event: DragEvent<HTMLDivElement>) => void;
+//   onCardDragStart: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+//   onCardDragEnd: () => void;
+//   onCardDragOver: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+//   onCardDrop: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+//   onEdit: (todo: TodoItem) => void;
+//   onStart: (todo: TodoItem) => void;
+//   onComplete: (todo: TodoItem) => void;
+//   onCancel: (id: number) => void;
+//   onDelete: (id: number) => void;
+// };
+
+interface BoardColumnData {
   column: { key: TodoStatus; label: string; color: string };
   items: TodoItem[];
   statusFilter: 'all' | TodoStatus;
@@ -118,35 +141,37 @@ type BoardColumnProps = {
   onCardDragEnd: () => void;
   onCardDragOver: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
   onCardDrop: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
+}
+
+interface BoardColumnActions {
   onEdit: (todo: TodoItem) => void;
   onStart: (todo: TodoItem) => void;
   onComplete: (todo: TodoItem) => void;
   onCancel: (id: number) => void;
   onDelete: (id: number) => void;
-};
+  handleSave?: () => void; // optional, not used directly here
+}
 
-const BoardColumn = memo(function BoardColumn({
-  column,
-  items,
-  statusFilter,
-  statCount,
-  draggingTodoId,
-  dropTargetStatus,
-  dropTargetTodoId,
-  draggingTodo,
-  canDropHere,
-  onColumnDragOver,
-  onColumnDrop,
-  onCardDragStart,
-  onCardDragEnd,
-  onCardDragOver,
-  onCardDrop,
-  onEdit,
-  onStart,
-  onComplete,
-  onCancel,
-  onDelete,
-}: BoardColumnProps) {
+const BoardColumn = memo(function BoardColumn({ data, actions }: { data: BoardColumnData; actions: BoardColumnActions }) {
+  const {
+    column,
+    items,
+    statusFilter,
+    statCount,
+    draggingTodoId,
+    dropTargetStatus,
+    dropTargetTodoId,
+    draggingTodo,
+    canDropHere,
+    onColumnDragOver,
+    onColumnDrop,
+    onCardDragStart,
+    onCardDragEnd,
+    onCardDragOver,
+    onCardDrop,
+  } = data;
+  const { onEdit, onStart, onComplete, onCancel, onDelete } = actions;
+
   return (
     <Box
       onDragOver={(event) => {
@@ -238,14 +263,14 @@ const BoardColumn = memo(function BoardColumn({
     </Box>
   );
 }, (prev, next) =>
-  prev.column === next.column &&
-  prev.items === next.items &&
-  prev.statusFilter === next.statusFilter &&
-  prev.draggingTodoId === next.draggingTodoId &&
-  prev.dropTargetStatus === next.dropTargetStatus &&
-  prev.dropTargetTodoId === next.dropTargetTodoId &&
-  prev.statCount[next.column.key] === next.statCount[next.column.key] &&
-  prev.draggingTodo === next.draggingTodo,
+  prev.data.column === next.data.column &&
+  prev.data.items === next.data.items &&
+  prev.data.statusFilter === next.data.statusFilter &&
+  prev.data.draggingTodoId === next.data.draggingTodoId &&
+  prev.data.dropTargetStatus === next.data.dropTargetStatus &&
+  prev.data.dropTargetTodoId === next.data.dropTargetTodoId &&
+  prev.data.statCount[next.data.column.key] === next.data.statCount[next.data.column.key] &&
+  prev.data.draggingTodo === next.data.draggingTodo,
 );
 
 type TodoForm = {
@@ -303,7 +328,7 @@ export default function TodosPage() {
       });
   };
 
-  const loadTodos = () => {
+  const loadTodos = useCallback(() => {
     setLoading(true);
     setError(null);
     const params: Record<string, string | number> = {
@@ -334,7 +359,7 @@ export default function TodosPage() {
       })
       .finally(() => setLoading(false));
     loadStats();
-  };
+  }, [page, limit, status, sortBy, order, search, priority]);
 
   useEffect(() => {
     loadTodos();
@@ -356,13 +381,13 @@ export default function TodosPage() {
     resetForm();
   };
 
-  const parseTags = (raw: string) =>
+  const parseTags = (raw: string): string[] =>
     raw
       .split(',')
       .map((tag) => tag.trim())
       .filter(Boolean);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!form.title.trim()) {
       setError('Tiêu đề là bắt buộc.');
       return;
@@ -403,7 +428,7 @@ export default function TodosPage() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [form, restoreTodoId, editingTodo, setTodos, setTotal, resetForm, setFormOpen, loadStats, setError, setSubmitting]);
 
   const handleEdit = (todo: TodoItem) => {
     setEditingTodo(todo);
@@ -421,7 +446,7 @@ export default function TodosPage() {
   // Starts a todo: transitions from 'todo' to 'in_progress'
   // After any status change, both summary and todo list must be
   // refreshed together to prevent display inconsistency.
-  const handleStart = async (todo: TodoItem) => {
+  const handleStart = useCallback(async (todo: TodoItem) => {
     setError(null);
     try {
       await startTodo(todo.id);
@@ -430,12 +455,12 @@ export default function TodosPage() {
     } catch {
       setError('Không thể bắt đầu todo.');
     }
-  };
+  }, [startTodo, loadTodos, setError]);
 
   // Completes a todo: transitions from 'todo' or 'in_progress' to 'done'
   // After any status change, both summary and todo list must be
   // refreshed together to prevent display inconsistency.
-  const handleComplete = async (todo: TodoItem) => {
+  const handleComplete = useCallback(async (todo: TodoItem) => {
     setError(null);
     try {
       await completeTodo(todo.id);
@@ -444,7 +469,7 @@ export default function TodosPage() {
     } catch {
       setError('Không thể hoàn thành todo.');
     }
-  };
+  }, [completeTodo, loadTodos, setError]);
 
   // Cancels a todo with required reason: transitions to 'cancelled'
   // After any status change, both summary and todo list must be
@@ -471,7 +496,9 @@ export default function TodosPage() {
       setCancelingTodoId(null);
       setCancellationReason('');
       clearDragState();
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error('Cancel error:', message);
       setError('Không thể hủy todo. Vui lòng thử lại.');
     }
   };
@@ -894,30 +921,32 @@ export default function TodosPage() {
           }}
         >
           {visibleColumns.map((col) => {
+            const data = {
+              column: col,
+              items: grouped[col.key],
+              statusFilter: status,
+              statCount: statCount,
+              draggingTodoId,
+              dropTargetStatus,
+              dropTargetTodoId,
+              draggingTodo,
+              canDropHere,
+              onColumnDragOver: handleColumnDragOver,
+              onColumnDrop: handleColumnDrop,
+              onCardDragStart: handleCardDragStart,
+              onCardDragEnd: handleCardDragEnd,
+              onCardDragOver: handleCardDragOver,
+              onCardDrop: handleCardDrop,
+            };
+            const actions = {
+              onEdit: handleEdit,
+              onStart: handleStart,
+              onComplete: handleComplete,
+              onCancel: handleCancelClick,
+              onDelete: handleDelete,
+            };
             return (
-              <BoardColumn
-                key={col.key}
-                column={col}
-                items={grouped[col.key]}
-                statusFilter={status}
-                statCount={statCount}
-                draggingTodoId={draggingTodoId}
-                dropTargetStatus={dropTargetStatus}
-                dropTargetTodoId={dropTargetTodoId}
-                draggingTodo={draggingTodo}
-                canDropHere={canDropHere}
-                onColumnDragOver={handleColumnDragOver}
-                onColumnDrop={handleColumnDrop}
-                onCardDragStart={handleCardDragStart}
-                onCardDragEnd={handleCardDragEnd}
-                onCardDragOver={handleCardDragOver}
-                onCardDrop={handleCardDrop}
-                onEdit={handleEdit}
-                onStart={handleStart}
-                onComplete={handleComplete}
-                onCancel={handleCancelClick}
-                onDelete={handleDelete}
-              />
+              <BoardColumn key={col.key} data={data} actions={actions} />
             );
           })}
         </Box>

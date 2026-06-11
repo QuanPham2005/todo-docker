@@ -6,5 +6,5 @@ export class CancelTodoDto {
   @IsNotEmpty({ message: 'Cancellation reason is required' })
   @IsString()
   @MinLength(10, { message: 'Reason must be at least 10 characters' })
-  reason!: string;
+  reason: string;
 }

@@ -3,23 +3,27 @@
   "skills": {
     "nestjs-best-practices": {
       "source": "kadajett/agent-nestjs-skills",
-      "sourceType": "autoskills-registry",
-      "computedHash": "7f14f088a79090183152c2aa556f708b2f5b7d0dacfb0ad339df2d498ba52aa3"
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "68658903272e1015f3ec5084c7d0988216a47f42f675ed819a675250fc6a23cd"
     },
     "nodejs-backend-patterns": {
       "source": "wshobson/agents",
-      "sourceType": "autoskills-registry",
-      "computedHash": "710a5e6f83c46e8f6c43356df55c143a7375c4414559a581654ce51709138c55"
+      "sourceType": "github",
+      "skillPath": "plugins/javascript-typescript/skills/nodejs-backend-patterns/SKILL.md",
+      "computedHash": "48294eab8cded4902690197f684e2053c6fa02af303a1397ab53ea41e7d7a6bd"
     },
     "nodejs-best-practices": {
       "source": "sickn33/antigravity-awesome-skills",
-      "sourceType": "autoskills-registry",
-      "computedHash": "7361ab02fb6b09913e3bdd9cf61c629ed6c17de9485e6a781054e5d437ccfc29"
+      "sourceType": "github",
+      "skillPath": "skills/nodejs-best-practices/SKILL.md",
+      "computedHash": "6500f0617cb3bf5e5e565b42f5606365792591d3bdb1b2bd9cad3ef63a08ea39"
     },
     "typescript-advanced-types": {
       "source": "wshobson/agents",
-      "sourceType": "autoskills-registry",
-      "computedHash": "5ca0e177c6aaaba1889255691224daafdb7d71f317cc70bede1590d3907ded42"
+      "sourceType": "github",
+      "skillPath": "plugins/javascript-typescript/skills/typescript-advanced-types/SKILL.md",
+      "computedHash": "bc33bc9653d649a461e49abe45634b6b11a7aeeae552b05ec4d54d4589d16739"
     }
   }
 }

@@ -39,7 +39,7 @@ const priorityLabelMap: Record<string, string> = {
   High: 'Cao',
 };
 
-type Props = {
+interface TodoCardProps {
   todo: TodoItem;
   onEdit: (todo: TodoItem) => void;
   onStart: (todo: TodoItem) => void;
@@ -54,7 +54,7 @@ type Props = {
   onDrop?: (event: DragEvent<HTMLDivElement>, todo: TodoItem) => void;
   isDropTarget?: boolean;
   isDragActive?: boolean;
-};
+}
 
 function TodoCard({
   todo,
@@ -71,7 +71,7 @@ function TodoCard({
   onDrop,
   isDropTarget = false,
   // isDragActive = false,
-}: Props) {
+}: TodoCardProps) {
   const prio = priorityConfig[todo.priority] ?? priorityConfig.Low;
   const isClosed = ['overdue', 'done', 'cancelled'].includes(todo.status);
 
@@ -226,7 +226,7 @@ function TodoCard({
   );
 }
 
-export default memo(TodoCard, (prev, next) =>
+export default memo<TodoCardProps>(TodoCard, (prev, next) =>
   prev.todo === next.todo &&
   prev.draggable === next.draggable &&
   prev.isDragging === next.isDragging &&

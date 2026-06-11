@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import type { RootState } from '../../store';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -71,7 +72,7 @@ type AdminTodo = {
 export default function AdminTodos() {
   const dispatch = useDispatch();
   const { list: todos, total: todoTotal, isLoading: todoLoading } = useSelector(
-    (state: any) => state.todos,
+    (state: RootState) => state.todos,
   );
   const [error, setError] = useState<string | null>(null);
 

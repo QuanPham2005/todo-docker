@@ -1,0 +1,7 @@
+- Never repeat the same code fix more than 2 times. If it fails, stop and ask the user for log.
+- Always run 'npm test' or the specific test command after making an edit to verify if the fix works.
+- Keep modifications minimal. Do not rewrite the whole file if you only need to fix 1 line.
+# AGENT SKILLS CONFIGURATION
+- When executing tasks in the frontend directory, you must dynamically read and comply with the skills locked in `./frontend/skills-lock.json`.
+- When executing tasks in the backend directory, you must dynamically read and comply with the skills locked in `./backend/skills-lock.json`.
+- Before starting any coding task, review the specific skill patterns related to that folder to avoid repeating bad practices.

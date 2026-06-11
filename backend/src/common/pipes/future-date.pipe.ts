@@ -6,12 +6,12 @@ import {
 
 @Injectable()
 export class FutureDatePipe implements PipeTransform {
-  transform(value: any) {
+  transform(value: unknown) {
     if (!value || typeof value !== 'object') {
       return value;
     }
 
-    const dueDate = value.dueDate ?? value.due_date;
+const dueDate = (value as any).dueDate ?? (value as any).due_date;
     if (dueDate === undefined || dueDate === null || dueDate === '') {
       return value;
     }

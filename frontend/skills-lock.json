@@ -3,8 +3,9 @@
   "skills": {
     "accessibility": {
       "source": "addyosmani/web-quality-skills",
-      "sourceType": "autoskills-registry",
-      "computedHash": "bffe3d08cfe92ebad63699f74ce29e35c19850ebfbf474c1463183cfe34d6a09"
+      "sourceType": "github",
+      "skillPath": "skills/accessibility/SKILL.md",
+      "computedHash": "ebfa09617a2ac4fd64afd73267726b787145a8d14294df3f8802b462c91594ab"
     },
     "composition-patterns": {
       "source": "vercel-labs/agent-skills",
@@ -23,8 +24,9 @@
     },
     "seo": {
       "source": "addyosmani/web-quality-skills",
-      "sourceType": "autoskills-registry",
-      "computedHash": "c184da724d1c61ad077f27418ea8e7e88fd54bcdf98165e18be7e4681cbd5e20"
+      "sourceType": "github",
+      "skillPath": "skills/seo/SKILL.md",
+      "computedHash": "3d72168e266b759454b3e16028e7306ec716f21de6878cac7e98a0a3834ab5db"
     },
     "typescript-advanced-types": {
       "source": "wshobson/agents",
