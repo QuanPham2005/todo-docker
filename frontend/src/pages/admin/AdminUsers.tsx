@@ -16,8 +16,10 @@ import Chip from '@mui/material/Chip';
 import Pagination from '@mui/material/Pagination';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+import { useTheme, useMediaQuery } from '@mui/material';
 import api from '../../api/axios';
 import { banAdminUser, deleteAdminUser } from '../../api/admin.api';
+import AdminUserCard from '../../components/admin/AdminUserCard';
 
 type AdminUser = {
   id: number;
@@ -29,6 +31,8 @@ type AdminUser = {
 
 export default function AdminUsers() {
   const currentUser = useAuthStore((state) => state.user);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [userLoading, setUserLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,12 +61,12 @@ export default function AdminUsers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userPage, userSearch]);
 
-  const handleBanToggle = async (user: AdminUser) => {
+  const handleBanToggle = async (userId: number, isBanned: boolean) => {
     setError(null);
     try {
-      await banAdminUser(user.id, !user.isBanned);
+      await banAdminUser(userId, isBanned);
       setUsers((current) =>
-        current.map((item) => (item.id === user.id ? { ...item, isBanned: !item.isBanned } : item)),
+        current.map((item) => (item.id === userId ? { ...item, isBanned } : item)),
       );
     } catch {
       setError('Không thể cập nhật trạng thái ban của người dùng');
@@ -92,7 +96,7 @@ export default function AdminUsers() {
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       <Paper sx={{ p: 3 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
           <TextField
             label="Tìm kiếm user"
             value={userSearch}
@@ -100,75 +104,112 @@ export default function AdminUsers() {
               setUserSearch(event.target.value);
               setUserPage(1);
             }}
+            fullWidth
             sx={{ width: { xs: '100%', sm: 320 } }}
           />
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
             Tổng: {userTotal} người dùng
           </Typography>
         </Stack>
       </Paper>
 
       <Paper>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Email</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Trạng thái</TableCell>
-                <TableCell>Ngày tạo</TableCell>
-                <TableCell align="right">Hành động</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {userLoading ? (
+        {isMobile ? (
+          // Mobile Card View
+          <Box sx={{ p: 2 }}>
+            {userLoading ? (
+              <Stack alignItems="center" sx={{ py: 4 }}>
+                <CircularProgress />
+              </Stack>
+            ) : users.length === 0 ? (
+              <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+                Không tìm thấy người dùng.
+              </Typography>
+            ) : (
+              <Stack spacing={2}>
+                {users.map((user) => (
+                  <AdminUserCard
+                    key={user.id}
+                    id={user.id}
+                    email={user.email}
+                    role={user.role}
+                    isBanned={user.isBanned}
+                    createdAt={user.createdAt}
+                    isCurrentUser={user.id === currentUser?.id}
+                    onBanToggle={(id: number, isBanned: boolean) => handleBanToggle(id, isBanned)}
+                    onDelete={handleDeleteUser}
+                  />
+                ))}
+              </Stack>
+            )}
+          </Box>
+        ) : (
+          // Desktop Table View
+          <TableContainer>
+            <Table>
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
-                    <CircularProgress />
-                  </TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell>Trạng thái</TableCell>
+                  <TableCell>Ngày tạo</TableCell>
+                  <TableCell align="right">Hành động</TableCell>
                 </TableRow>
-              ) : users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center">
-                    Không tìm thấy người dùng.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((user) => (
-                  <TableRow key={user.id} hover>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.role}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={user.isBanned ? 'Banned' : 'Active'}
-                        color={user.isBanned ? 'error' : 'success'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        {user.id !== currentUser?.id ? (
-                          <Button size="small" variant="outlined" onClick={() => handleBanToggle(user)}>
-                            {user.isBanned ? 'Unban' : 'Ban'}
-                          </Button>
-                        ) : null}
-                        <Button
-                          size="small"
-                          color="error"
-                          variant="contained"
-                          onClick={() => handleDeleteUser(user.id)}
-                        >
-                          Xóa
-                        </Button>
-                      </Stack>
+              </TableHead>
+              <TableBody>
+                {userLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center">
+                      <CircularProgress />
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                ) : users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center">
+                      Không tìm thấy người dùng.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id} hover>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.role}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={user.isBanned ? 'Banned' : 'Active'}
+                          color={user.isBanned ? 'error' : 'success'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          {user.id !== currentUser?.id ? (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleBanToggle(user.id, !user.isBanned)}
+                            >
+                              {user.isBanned ? 'Unban' : 'Ban'}
+                            </Button>
+                          ) : null}
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="contained"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            Xóa
+                          </Button>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </Paper>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
