@@ -244,9 +244,9 @@ export default function AdminStats() {
 
           <Box
             sx={{
-              display: 'grid',
+              display: { xs: 'none', lg: 'grid' },
               gap: 3,
-              gridTemplateColumns: { xs: '1fr', lg: '1.2fr 1fr' },
+              gridTemplateColumns: { lg: '1.2fr 1fr' },
             }}
           >
             <Paper sx={{ p: 3, borderRadius: 3 }}>
@@ -345,9 +345,9 @@ export default function AdminStats() {
 
           <Box
             sx={{
-              display: 'grid',
+              display: { xs: 'none', lg: 'grid' },
               gap: 3,
-              gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
+              gridTemplateColumns: { lg: 'repeat(2, minmax(0, 1fr))' },
             }}
           >
             <Paper sx={{ p: 3, borderRadius: 3 }}>
@@ -423,7 +423,98 @@ export default function AdminStats() {
             </Paper>
           </Box>
 
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
+          <Box sx={{ display: { xs: 'grid', lg: 'none' }, gap: 3 }}>
+            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                Phân bổ trạng thái todo
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Tóm tắt trạng thái trên mobile.
+              </Typography>
+              <Stack spacing={1.25}>
+                {statusChartData.map((entry) => {
+                  const percentage = overview?.totalTodos ? Math.round((entry.value / overview.totalTodos) * 100) : 0;
+
+                  return (
+                    <Box key={entry.name}>
+                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {entry.name}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {entry.value} ({percentage}%)
+                        </Typography>
+                      </Stack>
+                      <Box sx={{ height: 8, borderRadius: 999, bgcolor: 'rgba(15, 38, 75, 0.08)', overflow: 'hidden' }}>
+                        <Box sx={{ width: `${percentage}%`, height: '100%', bgcolor: entry.color, borderRadius: 999 }} />
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Stack>
+            </Paper>
+
+            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                Chỉ số nhanh
+              </Typography>
+              <Stack spacing={1.5} sx={{ mt: 2 }}>
+                {[
+                  { label: 'Tổng todo đã hoàn thành', value: totalCompletedTodos, color: '#22a06b' },
+                  { label: 'Tổng todo chưa làm', value: totalTodoTodos, color: '#5e6c84' },
+                  { label: 'Tỷ lệ hoàn thành trung bình', value: `${avgCompletionRate}%`, color: '#0c66e4' },
+                ].map((item) => (
+                  <Paper key={item.label} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                      <Typography variant="body2" color="text.secondary">
+                        {item.label}
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: item.color }}>
+                        {item.value}
+                      </Typography>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            </Paper>
+
+            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                Thống kê theo người dùng
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Danh sách rút gọn cho mobile.
+              </Typography>
+              <Stack spacing={1.25}>
+                {userStats.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Không có dữ liệu thống kê.
+                  </Typography>
+                ) : (
+                  userStats.map((stat) => (
+                    <Paper key={stat.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                      <Stack spacing={0.75}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, wordBreak: 'break-word' }}>
+                          {stat.email}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(stat.createdAt).toLocaleDateString('vi-VN')}
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                          <Chip label={`Todo ${stat.totalTodos}`} size="small" />
+                          <Chip label={`HT ${stat.completedTodos}`} size="small" color="success" />
+                          <Chip label={`TL ${stat.todoTodos}`} size="small" />
+                          <Chip label={`${stat.completionRate}%`} size="small" color="primary" />
+                        </Stack>
+                      </Stack>
+                    </Paper>
+                  ))
+                )}
+              </Stack>
+            </Paper>
+          </Box>
+
+          <Paper sx={{ p: 3, borderRadius: 3, display: { xs: 'none', lg: 'block' } }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
               Thống kê theo người dùng
             </Typography>

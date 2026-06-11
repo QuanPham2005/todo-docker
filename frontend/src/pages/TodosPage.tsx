@@ -952,7 +952,7 @@ export default function TodosPage() {
         </Box>
       )}
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+      {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
           Trang {page} · Hiển thị {todos.length} / {total} công việc
         </Typography>
@@ -963,7 +963,7 @@ export default function TodosPage() {
           color="primary"
           shape="rounded"
         />
-      </Box>
+      </Box> */}
 
       {/* Create / Edit dialog */}
       <Dialog open={formOpen} onClose={closeForm} fullWidth maxWidth="sm">

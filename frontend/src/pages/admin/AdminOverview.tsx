@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../../store';
-
-interface AdminStats {
-  totalUsers: number;
-  totalAdmins: number;
-  totalTodos: number;
-}
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -21,7 +15,14 @@ import AutorenewRoundedIcon from '@mui/icons-material/AutorenewRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
 import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
+import { fetchAdminStats } from '../../api/admin.api';
 import { fetchTodosAndSummary } from '../../store/todosSlice';
+
+interface AdminStats {
+  totalUsers: number;
+  totalAdmins: number;
+  totalTodos: number;
+}
 
 type StatCardConfig = {
   key: string;
@@ -35,8 +36,9 @@ type StatCardConfig = {
 export default function AdminOverview() {
   const dispatch = useDispatch();
   const { summary: overview, isLoading } = useSelector((state: RootState) => state.todos);
-const stats = useSelector((state: any) => (state.admin?.stats || state.todos?.adminStats)) as AdminStats;
-
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [adminStatsLoading, setAdminStatsLoading] = useState(false);
+  
   // Track ordering of the stat cards so they can be rearranged.
   const [order, setOrder] = useState<string[]>([
     'totalUsers',
@@ -51,7 +53,27 @@ const stats = useSelector((state: any) => (state.admin?.stats || state.todos?.ad
   const [dragKey, setDragKey] = useState<string | null>(null);
 
   useEffect(() => {
-    dispatch(fetchTodosAndSummary({ page: 1, limit: 10 }) as any);
+    let isMounted = true;
+
+    setAdminStatsLoading(true);
+    Promise.all([dispatch(fetchTodosAndSummary({ page: 1, limit: 10 }) as any), fetchAdminStats()])
+      .then(([, adminStats]) => {
+        if (isMounted) {
+          setStats(adminStats);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load admin overview:', error);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setAdminStatsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [dispatch]);
 
   const cardMap = useMemo<Record<string, StatCardConfig>>(
@@ -150,7 +172,7 @@ const stats = useSelector((state: any) => (state.admin?.stats || state.todos?.ad
         </Typography>
       </Box>
 
-      {isLoading ? (
+      {isLoading || adminStatsLoading ? (
         <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
           <CircularProgress />
         </Box>

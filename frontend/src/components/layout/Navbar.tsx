@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -11,6 +12,8 @@ import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import BottomNavigation from '@mui/material/BottomNavigation';
+import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ChecklistRoundedIcon from '@mui/icons-material/ChecklistRounded';
@@ -39,6 +42,19 @@ export default function Navbar() {
 
   const isActive = (to: string) => location.pathname.startsWith(to);
   const initial = (user?.email || 'G').charAt(0).toUpperCase();
+  const mobileValue = user?.role === 'ADMIN' && location.pathname.startsWith('/admin')
+    ? '/admin'
+    : location.pathname.startsWith('/todos')
+      ? '/todos'
+      : '/dashboard';
+
+  const mobileNavItems = [
+    { label: 'Dashboard', to: '/dashboard', icon: <DashboardIcon /> },
+    { label: 'Todos', to: '/todos', icon: <ChecklistRoundedIcon /> },
+    ...(user?.role === 'ADMIN'
+      ? [{ label: 'Admin', to: '/admin', icon: <AdminPanelSettingsIcon /> }]
+      : []),
+  ];
 
   return (
     <AppBar
@@ -180,6 +196,50 @@ export default function Navbar() {
           </MenuItem>
         </Menu>
       </Toolbar>
+
+      <Paper
+        elevation={10}
+        sx={{
+          display: { xs: 'block', sm: 'none' },
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: (theme) => theme.zIndex.appBar - 1,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 0,
+          overflow: 'hidden',
+          pb: 'env(safe-area-inset-bottom)',
+        }}
+      >
+        <BottomNavigation
+          showLabels
+          value={mobileValue}
+          sx={{
+            height: 64,
+            bgcolor: 'background.paper',
+            '& .MuiBottomNavigationAction-root': {
+              minWidth: 0,
+              color: 'text.secondary',
+            },
+            '& .Mui-selected': {
+              color: 'primary.main',
+            },
+          }}
+        >
+          {mobileNavItems.map((item) => (
+            <BottomNavigationAction
+              key={item.to}
+              label={item.label}
+              icon={item.icon}
+              component={RouterLink}
+              to={item.to}
+              value={item.to}
+            />
+          ))}
+        </BottomNavigation>
+      </Paper>
     </AppBar>
   );
 }

@@ -1,11 +1,18 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import Box from '@mui/material/Box';
+import Fab from '@mui/material/Fab';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import Typography from '@mui/material/Typography';
 import Navbar from './Navbar';
 import SpaceDashboardRoundedIcon from '@mui/icons-material/SpaceDashboardRounded';
 import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
 import AssignmentRoundedIcon from '@mui/icons-material/AssignmentRounded';
 import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import { useLocation } from 'react-router-dom';
 
 const SIDEBAR_WIDTH = 264;
 
@@ -17,6 +24,12 @@ const adminNavItems = [
 ];
 
 export default function AdminLayout() {
+  const location = useLocation();
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+
+  const isActive = (to: string, end?: boolean) =>
+    end ? location.pathname === to : location.pathname.startsWith(to);
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <Navbar />
@@ -107,6 +120,7 @@ export default function AdminLayout() {
             minWidth: 0,
             px: { xs: 2, sm: 3, md: 4 },
             py: { xs: 3, md: 4 },
+            pb: { xs: 10, sm: 4 },
             maxWidth: 1280,
             mx: 'auto',
             width: '100%',
@@ -115,6 +129,58 @@ export default function AdminLayout() {
           <Outlet />
         </Box>
       </Box>
+
+      <Fab
+        color="primary"
+        onClick={(event) => setMenuAnchorEl(event.currentTarget)}
+        sx={{
+          display: { xs: 'inline-flex', md: 'none' },
+          position: 'fixed',
+          right: 16,
+          bottom: 84,
+          zIndex: (theme) => theme.zIndex.modal + 1,
+          boxShadow: '0 14px 30px rgba(12, 102, 228, 0.35)',
+          animation: 'adminAssistPulse 2.8s ease-in-out infinite',
+          transformOrigin: 'center',
+          '@keyframes adminAssistPulse': {
+            '0%, 100%': { transform: 'translateY(0) scale(1)' },
+            '50%': { transform: 'translateY(-3px) scale(1.03)' },
+          },
+          '&:hover': {
+            transform: 'translateY(-2px) scale(1.04)',
+            boxShadow: '0 18px 36px rgba(12, 102, 228, 0.42)',
+          },
+        }}
+        aria-label="Mở menu quản trị"
+      >
+        <MenuRoundedIcon />
+      </Fab>
+
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={() => setMenuAnchorEl(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { borderRadius: 2.5, minWidth: 240 } } }}
+      >
+        {adminNavItems.map((item) => (
+          <MenuItem
+            key={item.to}
+            component={NavLink}
+            to={item.to}
+            end={item.end}
+            onClick={() => setMenuAnchorEl(null)}
+            sx={{
+              color: isActive(item.to, item.end) ? 'primary.main' : 'text.primary',
+              fontWeight: isActive(item.to, item.end) ? 700 : 500,
+            }}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}>{item.icon}</ListItemIcon>
+            {item.label}
+          </MenuItem>
+        ))}
+      </Menu>
     </Box>
   );
 }

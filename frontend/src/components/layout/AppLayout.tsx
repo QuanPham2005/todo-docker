@@ -11,6 +11,7 @@ export default function AppLayout() {
         sx={{
           px: { xs: 2, sm: 3, md: 4 },
           py: { xs: 3, md: 4 },
+          pb: { xs: 10, sm: 4 },
           maxWidth: 1280,
           mx: 'auto',
         }}
