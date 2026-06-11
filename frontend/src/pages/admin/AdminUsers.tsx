@@ -95,7 +95,7 @@ export default function AdminUsers() {
 
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 2.5, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
           <TextField
             label="Tìm kiếm user"
@@ -105,9 +105,9 @@ export default function AdminUsers() {
               setUserPage(1);
             }}
             fullWidth
-            sx={{ width: { xs: '100%', sm: 320 } }}
+            sx={{ width: { xs: '100%', sm: 320 }, minHeight: 48 }}
           />
-          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap', py: 1 }}>
             Tổng: {userTotal} người dùng
           </Typography>
         </Stack>

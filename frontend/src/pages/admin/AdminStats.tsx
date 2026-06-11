@@ -204,9 +204,13 @@ export default function AdminStats() {
                   sx={{
                     p: 2.5,
                     borderRadius: 3,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    boxShadow: '0 10px 28px rgba(15, 38, 75, 0.06)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.2s ease-out',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+                      transform: 'translateY(-2px)',
+                    },
+                    minHeight: 160,
                   }}
                 >
                   <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
@@ -251,7 +255,7 @@ export default function AdminStats() {
               gridTemplateColumns: { xs: '1fr', lg: '1.2fr 1fr' },
             }}
           >
-            <Paper sx={{ p: 3, borderRadius: 3 }}>
+            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
               <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
                 <Box>
                   <Typography variant="h6" sx={{ fontWeight: 800 }}>
@@ -296,7 +300,7 @@ export default function AdminStats() {
               </Box>
             </Paper>
 
-            <Paper sx={{ p: 3, borderRadius: 3 }}>
+            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
                 Chỉ số nhanh
               </Typography>
@@ -352,7 +356,7 @@ export default function AdminStats() {
               gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
             }}
           >
-            <Paper sx={{ p: 3, borderRadius: 3 }}>
+            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
                 Top người dùng theo số todo
               </Typography>
@@ -386,7 +390,7 @@ export default function AdminStats() {
               </Box>
             </Paper>
 
-            <Paper sx={{ p: 3, borderRadius: 3 }}>
+            <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
                 Tỷ lệ hoàn thành theo người dùng
               </Typography>
@@ -433,7 +437,7 @@ export default function AdminStats() {
           </Box>
 
           <Box sx={{ display: { xs: 'grid', lg: 'none' }, gap: 3 }}>
-            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+            <Paper sx={{ p: 2.5, borderRadius: 3, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
                 Phân bổ trạng thái todo
               </Typography>
@@ -463,7 +467,7 @@ export default function AdminStats() {
               </Stack>
             </Paper>
 
-            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+            <Paper sx={{ p: 2.5, borderRadius: 3, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
                 Chỉ số nhanh
               </Typography>
@@ -487,7 +491,7 @@ export default function AdminStats() {
               </Stack>
             </Paper>
 
-            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+            <Paper sx={{ p: 2.5, borderRadius: 3, boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
                 Thống kê theo người dùng
               </Typography>
