@@ -113,33 +113,45 @@ export default function AdminUsers() {
         </Stack>
       </Paper>
 
-      <Paper>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Email</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Trạng thái</TableCell>
-                <TableCell>Ngày tạo</TableCell>
-                <TableCell align="right">Hành động</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {userLoading ? (
+      {userLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : users.length === 0 ? (
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography color="text.secondary">Không tìm thấy người dùng.</Typography>
+        </Paper>
+      ) : isMobile ? (
+        <Stack spacing={2}>
+          {users.map((user) => (
+            <AdminUserCard
+              key={user.id}
+              id={user.id}
+              email={user.email}
+              role={user.role}
+              isBanned={user.isBanned}
+              createdAt={user.createdAt}
+              isCurrentUser={user.id === currentUser?.id}
+              onBanToggle={handleBanToggle}
+              onDelete={handleDeleteUser}
+            />
+          ))}
+        </Stack>
+      ) : (
+        <Paper>
+          <TableContainer>
+            <Table>
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
-                    <CircularProgress />
-                  </TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell>Trạng thái</TableCell>
+                  <TableCell>Ngày tạo</TableCell>
+                  <TableCell align="right">Hành động</TableCell>
                 </TableRow>
-              ) : users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center">
-                    Không tìm thấy người dùng.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((user) => (
+              </TableHead>
+              <TableBody>
+                {users.map((user) => (
                   <TableRow key={user.id} hover>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.role}</TableCell>
@@ -154,7 +166,11 @@ export default function AdminUsers() {
                     <TableCell align="right">
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
                         {user.id !== currentUser?.id ? (
-                          <Button size="small" variant="outlined" onClick={() => handleBanToggle(user)}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleBanToggle(user.id, !user.isBanned)}
+                          >
                             {user.isBanned ? 'Unban' : 'Ban'}
                           </Button>
                         ) : null}
@@ -169,12 +185,12 @@ export default function AdminUsers() {
                       </Stack>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'center', sm: 'flex-end' } }}>
         <Pagination

@@ -114,14 +114,6 @@ export default function AdminTodos() {
     }
   };
 
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragEnd = () => {
-    // Handle drag end
-  };
-
   return (
     <Box sx={{ display: 'grid', gap: 3 }}>
       <Box>
@@ -223,35 +215,49 @@ export default function AdminTodos() {
         </Box>
       </Paper>
 
-      <Paper>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Tiêu đề</TableCell>
-                <TableCell>Người tạo</TableCell>
-                <TableCell>Ưu tiên</TableCell>
-                <TableCell>Hạn chót</TableCell>
-                <TableCell>Trạng thái</TableCell>
-                <TableCell>Thẻ</TableCell>
-                <TableCell align="right">Hành động</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {todoLoading ? (
+      {todoLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : todos.length === 0 ? (
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography color="text.secondary">Không tìm thấy todo.</Typography>
+        </Paper>
+      ) : isMobile ? (
+        <Stack spacing={2}>
+          {(todos as AdminTodo[]).map((todo: AdminTodo) => (
+            <AdminTodosCard
+              key={todo.id}
+              id={todo.id}
+              title={todo.title}
+              email={todo.user.email}
+              priority={todo.priority}
+              status={todo.status}
+              dueDate={todo.dueDate}
+              tags={todo.tags}
+              priorityLabelMap={todoPriorityLabelMap}
+              priorityColorMap={todoPriorityColorMap}
+              onDelete={handleDeleteTodo}
+            />
+          ))}
+        </Stack>
+      ) : (
+        <Paper>
+          <TableContainer>
+            <Table>
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
-                    <CircularProgress />
-                  </TableCell>
+                  <TableCell>Tiêu đề</TableCell>
+                  <TableCell>Người tạo</TableCell>
+                  <TableCell>Ưu tiên</TableCell>
+                  <TableCell>Hạn chót</TableCell>
+                  <TableCell>Trạng thái</TableCell>
+                  <TableCell>Thẻ</TableCell>
+                  <TableCell align="right">Hành động</TableCell>
                 </TableRow>
-              ) : todos.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center">
-                    Không tìm thấy todo.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                (todos as AdminTodo[]).map((todo: AdminTodo) => (
+              </TableHead>
+              <TableBody>
+                {(todos as AdminTodo[]).map((todo: AdminTodo) => (
                   <TableRow key={todo.id} hover>
                     <TableCell>{todo.title}</TableCell>
                     <TableCell>{todo.user.email}</TableCell>
@@ -314,12 +320,12 @@ export default function AdminTodos() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'center', sm: 'flex-end' } }}>
         <Pagination
