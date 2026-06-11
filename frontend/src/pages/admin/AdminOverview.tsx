@@ -36,17 +36,8 @@ type StatCardConfig = {
 
 export default function AdminOverview() {
   // ---------- Mobile drawer setup ----------
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const drawerWidth = 280; // max width for mobile drawer
 
-  const menuItems = [
-    { label: 'Dashboard', icon: <AdminPanelSettingsRoundedIcon />, path: '/admin' },
-    { label: 'Quản lý người dùng', icon: <PeopleAltRoundedIcon />, path: '/admin/users' },
-    { label: 'Quản lý công việc', icon: <ChecklistRoundedIcon />, path: '/admin/todos' },
-    { label: 'Thống kê', icon: <AutorenewRoundedIcon />, path: '/admin/stats' },
-  ];
   const dispatch = useDispatch();
   const { summary: overview, isLoading } = useSelector((state: RootState) => state.todos);
   const [stats, setStats] = useState<AdminStats | null>(null);
