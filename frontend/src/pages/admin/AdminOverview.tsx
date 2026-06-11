@@ -15,17 +15,7 @@ import AutorenewRoundedIcon from '@mui/icons-material/AutorenewRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
 import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
-import {
-  useTheme,
-  useMediaQuery,
-  SwipeableDrawer,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  IconButton
-} from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
+import { useTheme, useMediaQuery } from '@mui/material';
 import { fetchAdminStats } from '../../api/admin.api';
 import { fetchTodosAndSummary } from '../../store/todosSlice';
 
