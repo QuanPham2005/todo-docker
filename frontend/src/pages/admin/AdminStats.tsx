@@ -181,7 +181,9 @@ export default function AdminStats() {
               display: 'grid',
               gap: 2,
               gridTemplateColumns: {
-                xs: 'repeat(2, minmax(0, 1fr))',
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(3, minmax(0, 1fr))',
                 lg: 'repeat(4, minmax(0, 1fr))',
               },
             }}
@@ -246,7 +248,7 @@ export default function AdminStats() {
             sx={{
               display: { xs: 'none', lg: 'grid' },
               gap: 3,
-              gridTemplateColumns: { lg: '1.2fr 1fr' },
+              gridTemplateColumns: { xs: '1fr', lg: '1.2fr 1fr' },
             }}
           >
             <Paper sx={{ p: 3, borderRadius: 3 }}>
@@ -264,7 +266,7 @@ export default function AdminStats() {
 
               <Divider sx={{ my: 2.5 }} />
 
-              <Box sx={{ width: '100%', height: 320 }}>
+              <Box sx={{ width: '100%', height: { xs: 280, md: 320 } }}>
                 {statusChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -272,8 +274,8 @@ export default function AdminStats() {
                         data={statusChartData}
                         dataKey="value"
                         nameKey="name"
-                        innerRadius={78}
-                        outerRadius={112}
+                        innerRadius={50}
+                        outerRadius={80}
                         paddingAngle={2}
                       >
                         {statusChartData.map((entry) => (
@@ -347,7 +349,7 @@ export default function AdminStats() {
             sx={{
               display: { xs: 'none', lg: 'grid' },
               gap: 3,
-              gridTemplateColumns: { lg: 'repeat(2, minmax(0, 1fr))' },
+              gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
             }}
           >
             <Paper sx={{ p: 3, borderRadius: 3 }}>
@@ -357,10 +359,14 @@ export default function AdminStats() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 So sánh số lượng todo đang phụ trách của từng người dùng.
               </Typography>
-              <Box sx={{ width: '100%', height: 320 }}>
+              <Box sx={{ width: '100%', height: { xs: 280, md: 320 } }}>
                 {topUsersByTodo.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topUsersByTodo} layout="vertical" margin={{ left: 16, right: 24 }}>
+                    <BarChart
+                      data={topUsersByTodo}
+                      layout="vertical"
+                      margin={{ left: 16, right: 24, top: 5, bottom: 5 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                       <XAxis type="number" allowDecimals={false} />
                       <YAxis type="category" dataKey="name" width={96} />
@@ -387,10 +393,13 @@ export default function AdminStats() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Người dùng nào đang có hiệu suất hoàn thành cao nhất.
               </Typography>
-              <Box sx={{ width: '100%', height: 320 }}>
+              <Box sx={{ width: '100%', height: { xs: 280, md: 320 } }}>
                 {topUsersByCompletion.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={topUsersByCompletion} margin={{ top: 10, right: 24, bottom: 0, left: 0 }}>
+                    <LineChart
+                      data={topUsersByCompletion}
+                      margin={{ top: 10, right: 24, bottom: 0, left: 0 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="name" />
                       <YAxis domain={[0, 100]} tickFormatter={(value: number) => `${value}%`} />

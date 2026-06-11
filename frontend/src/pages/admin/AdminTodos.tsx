@@ -22,8 +22,10 @@ import Chip from '@mui/material/Chip';
 import Pagination from '@mui/material/Pagination';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+import { useTheme, useMediaQuery } from '@mui/material';
 import { fetchTodosAndSummary, type AdminTodosQuery } from '../../store/todosSlice';
 import { deleteAdminTodo } from '../../api/admin.api';
+import AdminTodosCard from '../../components/admin/AdminTodosCard';
 
 const todoStatusOptions = [
   { value: 'all', label: 'Tất cả' },
@@ -71,6 +73,8 @@ type AdminTodo = {
 
 export default function AdminTodos() {
   const dispatch = useDispatch();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { list: todos, total: todoTotal, isLoading: todoLoading } = useSelector(
     (state: RootState) => state.todos,
   );
@@ -110,6 +114,14 @@ export default function AdminTodos() {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = () => {
+    // Handle drag end
+  };
+
   return (
     <Box sx={{ display: 'grid', gap: 3 }}>
       <Box>
@@ -129,6 +141,7 @@ export default function AdminTodos() {
             gridTemplateColumns: {
               xs: '1fr',
               sm: '1fr 1fr',
+              md: '1fr 1fr 1fr',
               lg: '2fr 1fr 1fr 1fr ',
             },
           }}
@@ -211,162 +224,101 @@ export default function AdminTodos() {
       </Paper>
 
       <Paper>
-        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-          <TableContainer>
-            <Table>
-              <TableHead>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Tiêu đề</TableCell>
+                <TableCell>Người tạo</TableCell>
+                <TableCell>Ưu tiên</TableCell>
+                <TableCell>Hạn chót</TableCell>
+                <TableCell>Trạng thái</TableCell>
+                <TableCell>Thẻ</TableCell>
+                <TableCell align="right">Hành động</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {todoLoading ? (
                 <TableRow>
-                  <TableCell>Tiêu đề</TableCell>
-                  <TableCell>Người tạo</TableCell>
-                  <TableCell>Ưu tiên</TableCell>
-                  <TableCell>Hạn chót</TableCell>
-                  <TableCell>Trạng thái</TableCell>
-                  <TableCell>Thẻ</TableCell>
-                  <TableCell align="right">Hành động</TableCell>
+                  <TableCell colSpan={7} align="center">
+                    <CircularProgress />
+                  </TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {todoLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center">
-                      <CircularProgress />
+              ) : todos.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    Không tìm thấy todo.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                (todos as AdminTodo[]).map((todo: AdminTodo) => (
+                  <TableRow key={todo.id} hover>
+                    <TableCell>{todo.title}</TableCell>
+                    <TableCell>{todo.user.email}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={todoPriorityLabelMap[todo.priority] ?? todo.priority}
+                        color={todoPriorityColorMap[todo.priority] ?? 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt'}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={
+                          todo.status === 'done'
+                            ? 'Hoàn thành'
+                            : todo.status === 'in_progress'
+                              ? 'Đang làm'
+                              : todo.status === 'todo'
+                                ? 'Chưa làm'
+                                : todo.status === 'overdue'
+                                  ? 'Quá hạn'
+                                  : todo.status === 'cancelled'
+                                    ? 'Đã hủy'
+                                    : 'Không xác định'
+                        }
+                        color={
+                          todo.status === 'done'
+                            ? 'success'
+                            : todo.status === 'in_progress'
+                              ? 'info'
+                              : todo.status === 'todo'
+                                ? 'default'
+                                : todo.status === 'overdue'
+                                  ? 'error'
+                                  : todo.status === 'cancelled'
+                                    ? 'warning'
+                                    : 'default'
+                        }
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        {todo.tags.map((tag: { name: string }) => (
+                          <Chip key={tag.name} label={tag.name} size="small" />
+                        ))}
+                      </Stack>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        size="small"
+                        color="error"
+                        variant="contained"
+                        onClick={() => handleDeleteTodo(todo.id)}
+                      >
+                        Xóa
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ) : todos.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center">
-                      Không tìm thấy todo.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  (todos as AdminTodo[]).map((todo: AdminTodo) => (
-                    <TableRow key={todo.id} hover>
-                      <TableCell>{todo.title}</TableCell>
-                      <TableCell>{todo.user.email}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={todoPriorityLabelMap[todo.priority] ?? todo.priority}
-                          color={todoPriorityColorMap[todo.priority] ?? 'default'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt'}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={
-                            todo.status === 'done'
-                              ? 'Hoàn thành'
-                              : todo.status === 'in_progress'
-                                ? 'Đang làm'
-                                : todo.status === 'todo'
-                                  ? 'Chưa làm'
-                                  : todo.status === 'overdue'
-                                    ? 'Quá hạn'
-                                    : todo.status === 'cancelled'
-                                      ? 'Đã hủy'
-                                      : 'Không xác định'
-                          }
-                          color={
-                            todo.status === 'done'
-                              ? 'success'
-                              : todo.status === 'in_progress'
-                                ? 'info'
-                                : todo.status === 'todo'
-                                  ? 'default'
-                                  : todo.status === 'overdue'
-                                    ? 'error'
-                                    : todo.status === 'cancelled'
-                                      ? 'warning'
-                                      : 'default'
-                          }
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1} flexWrap="wrap">
-                          {todo.tags.map((tag: { name: string }) => (
-                            <Chip key={tag.name} label={tag.name} size="small" />
-                          ))}
-                        </Stack>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Button
-                          size="small"
-                          color="error"
-                          variant="contained"
-                          onClick={() => handleDeleteTodo(todo.id)}
-                        >
-                          Xóa
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-
-        <Stack spacing={1.5} sx={{ display: { xs: 'grid', md: 'none' }, p: 2 }}>
-          {todoLoading ? (
-            <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
-              <CircularProgress />
-            </Box>
-          ) : todos.length === 0 ? (
-            <Box sx={{ py: 3, textAlign: 'center', color: 'text.secondary' }}>
-              Không tìm thấy todo.
-            </Box>
-          ) : (
-            (todos as AdminTodo[]).map((todo) => (
-              <Paper key={todo.id} variant="outlined" sx={{ p: 2, borderRadius: 2.5 }}>
-                <Stack spacing={1.25}>
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, wordBreak: 'break-word' }}>
-                      {todo.title}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ wordBreak: 'break-word' }}>
-                      {todo.user.email}
-                    </Typography>
-                  </Box>
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    <Chip
-                      label={todoPriorityLabelMap[todo.priority] ?? todo.priority}
-                      color={todoPriorityColorMap[todo.priority] ?? 'default'}
-                      size="small"
-                    />
-                    <Chip
-                      label={
-                        todo.status === 'done'
-                          ? 'Hoàn thành'
-                          : todo.status === 'in_progress'
-                            ? 'Đang làm'
-                            : todo.status === 'todo'
-                              ? 'Chưa làm'
-                              : todo.status === 'overdue'
-                                ? 'Quá hạn'
-                                : 'Đã hủy'
-                      }
-                      size="small"
-                    />
-                  </Stack>
-                  <Typography variant="body2" color="text.secondary">
-                    Hạn chót: {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : 'Chưa đặt'}
-                  </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {todo.tags.map((tag) => (
-                      <Chip key={tag.name} label={tag.name} size="small" variant="outlined" />
-                    ))}
-                  </Stack>
-                  <Button size="small" color="error" variant="contained" onClick={() => handleDeleteTodo(todo.id)}>
-                    Xóa
-                  </Button>
-                </Stack>
-              </Paper>
-            ))
-          )}
-        </Stack>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'center', sm: 'flex-end' } }}>
