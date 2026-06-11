@@ -1,4 +1,4 @@
-import React, { type ReactNode, memo } from 'react';
+import  { type ReactNode, memo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
