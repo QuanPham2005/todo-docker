@@ -15,7 +15,6 @@ import AutorenewRoundedIcon from '@mui/icons-material/AutorenewRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
 import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
-import { useTheme, useMediaQuery } from '@mui/material';
 import { fetchAdminStats } from '../../api/admin.api';
 import { fetchTodosAndSummary } from '../../store/todosSlice';
 
@@ -36,7 +35,6 @@ type StatCardConfig = {
 
 export default function AdminOverview() {
   // ---------- Mobile drawer setup ----------
-  const theme = useTheme();
 
   const dispatch = useDispatch();
   const { summary: overview, isLoading } = useSelector((state: RootState) => state.todos);
